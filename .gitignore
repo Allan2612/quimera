@@ -1,0 +1,43 @@
+# === Build artefacts ===
+/bin/
+/obj/
+/build/
+*.o
+*.d
+*.a
+*.so
+*.dylib
+*.dll
+*.lib
+*.exe
+*.out
+
+# Cobertura (gcov/lcov)
+*.gcda
+*.gcno
+*.gcov
+lcov.info
+/coverage/
+
+# Logs / temporales / editor
+*.log
+*.tmp
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# VS Code: ignora todo excepto los 3 archivos de config que sí versionamos
+.vscode/*
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/c_cpp_properties.json
+!.vscode/extensions.json
+
+# Entornos / secretos (si llegas a usarlos)
+.env
+*.env
+
+# MinGW/MSYS2 dumps ocasionales
+*.stackdump

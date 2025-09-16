@@ -1,0 +1,18 @@
+# Normaliza fin de línea a LF en el repositorio
+* text=auto eol=lf
+
+# Cabeceras detectadas como C (no C++)
+*.h linguist-language=C
+
+# Binaries (no diffs)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+
+# Directorios generados (no cuentan para estadísticas de lenguaje)
+bin/* linguist-generated
+obj/* linguist-generated
+build/* linguist-generated
