@@ -22,3 +22,12 @@ const size_t ArithmeticOpCount = sizeof(ArithmeticOps)/sizeof(ArithmeticOps[0]);
 // Lógicos / comparación
 const char * const LogicCompareOps[] = { "==","!=",">","<",">=","<=","&&","||","!" };
 const size_t LogicCompareOpCount = sizeof(LogicCompareOps)/sizeof(LogicCompareOps[0]);
+
+// Asignación
+const char * const AssignmentOps[] = { "=" };
+const size_t AssignmentOpCount = sizeof(AssignmentOps)/sizeof(AssignmentOps[0]);
+
+// ===== Comentarios =====
+const char * const LineCommentStart  = "//";
+const char * const BlockCommentStart = "/*";
+const char * const BlockCommentEnd   = "*/";

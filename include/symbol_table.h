@@ -25,6 +25,15 @@ extern const size_t       ArithmeticOpCount;
 extern const char * const LogicCompareOps[];
 extern const size_t       LogicCompareOpCount;
 
+// Operadores de asignación
+extern const char * const AssignmentOps[];
+extern const size_t       AssignmentOpCount;
+
+// ===== Comentarios =====
+extern const char * const LineCommentStart;   // "//"
+extern const char * const BlockCommentStart;  // "/*"
+extern const char * const BlockCommentEnd;    // "*/"
+
 #ifdef __cplusplus
 }
 #endif
