@@ -1,41 +1,8 @@
 #include "lexer.h"
 #include "symbol_table.h"
+#include "utils.h"
 #include <stdlib.h>
 #include <string.h>
-
-#define TOKEN_LIST_INITIAL_CAPACITY 16
-
-void init_token_list(TokenList *list) {
-    list->tokens = (Token *)malloc(TOKEN_LIST_INITIAL_CAPACITY * sizeof(Token));
-    list->count = 0;
-    list->capacity = TOKEN_LIST_INITIAL_CAPACITY;
-}
-
-static void resize_token_list(TokenList *list, size_t new_capacity) {
-    Token *new_tokens = (Token *)realloc(list->tokens, new_capacity * sizeof(Token));
-    if (new_tokens) {
-        list->tokens = new_tokens;
-        list->capacity = new_capacity;
-    }
-    // Si realloc falla, la lista original sigue válida, pero deberías manejar el error.
-}
-
-void add_token(TokenList *list, Token token) {
-    if (list->count >= list->capacity) {
-        resize_token_list(list, list->capacity * 2);
-    }
-    list->tokens[list->count++] = token;
-}
-
-void free_token_list(TokenList *list) {
-    for (size_t i = 0; i < list->count; ++i) {
-        free(list->tokens[i].lexeme); // Si los lexemas fueron asignados dinámicamente
-    }
-    free(list->tokens);
-    list->tokens = NULL;
-    list->count = 0;
-    list->capacity = 0;
-}
 
 void init_lexer(Lexer *lexer, const char *source) {
     lexer->source = source;
@@ -45,8 +12,87 @@ void init_lexer(Lexer *lexer, const char *source) {
     lexer->column = 1;
 }
 
-// Declaraciones de funciones especializadas (implementaciones vacías)
-static void identify_identifier(Lexer *lexer, Token *token) { token->type = TOK_IDENTIFIER; }
+// Si ya tienes una tabla de keywords en symbol_table.h, puedes exponer una función.
+// Aquí dejo una firma opcional; si no la tienes aún, déjala con return 0 y luego la conectas.
+static int is_keyword_lexeme(const char *lexeme, size_t len) {
+    // TODO: Integra con tu tabla de símbolos/palabras reservadas:
+    //   - por ejemplo: return symbol_table_is_keyword_n(lexeme, len);
+    (void)lexeme; (void)len;
+    return 0;
+}
+
+static int is_space(char c) {
+    return c == ' ' || c == '\t' || c == '\n' ||
+           c == '\r' || c == '\f' || c == '\v';
+}
+
+static void make_error_token_until_ws(Lexer *lexer, Token *token) {
+    size_t start_pos = lexer->position;
+    size_t i = start_pos;
+
+    // Avanzar hasta espacio en blanco o EOF (sin incluir el blanco)
+    while (i < lexer->length && !is_space(lexer->source[i])) {
+        i++;
+    }
+
+    size_t len = i - start_pos;
+
+    // Completar campos del token
+    token->type   = TOK_ERROR;
+    token->line   = lexer->line;
+    token->column = lexer->column;
+    token->length = len;
+    token->lexeme = lexer->source + start_pos;
+
+    if (len > 0) {
+        lexer->position = i - 1;      // último char del lexema de error
+        lexer->column  += (len - 1);  // el bucle sumará 1 más
+    }
+}
+
+
+static int is_alpha_uscore(char c) {
+    return (c >= 'A' && c <= 'Z') ||
+           (c >= 'a' && c <= 'z');
+}
+
+static int is_alnum_uscore(char c) {
+    return is_alpha_uscore(c) || (c >= '0' && c <= '9') || c == '_';
+}
+
+static void identify_identifier(Lexer *lexer, Token *token) { 
+    size_t start_pos = lexer->position;
+    size_t i = start_pos;
+
+    if (!is_alpha_uscore(lexer->source[i])) {
+        make_error_token_until_ws(lexer, token);
+        return;
+    }
+
+    i++;
+    while (i < lexer->length && is_alnum_uscore(lexer->source[i])) {
+        i++;
+    }
+
+    size_t len = i - start_pos;
+
+    token->line   = lexer->line;
+    token->column = lexer->column;
+    token->length = len;
+    token->lexeme = lexer->source + start_pos;
+
+    if (is_keyword_lexeme(token->lexeme, token->length)) {
+        token->type = TOK_KEYWORD;
+    } else {
+        token->type = TOK_IDENTIFIER;
+    }
+
+    lexer->position = i - 1;
+    if (len > 0) {
+        lexer->column += (len - 1);
+    }
+}
+
 static void identify_number(Lexer *lexer, Token *token)    { token->type = TOK_NUMBER; }
 static void identify_string(Lexer *lexer, Token *token)    { token->type = TOK_STRING; }
 static void identify_delimiter(Lexer *lexer, Token *token) { token->type = TOK_DELIMITER; }
@@ -97,17 +143,12 @@ void tokenize(Lexer *lexer, TokenList *list) {
         char current = lexer->source[lexer->position];
         init_token(&token); // Inicializar antes de usar
 
-        if (current == '/' && lexer->source[lexer->position + 1] == '/') {
-            skip_line_comment(lexer);
-            continue;
+        if (current == '/' && lexer->position + 1 < lexer->length) {
+            if (lexer->source[lexer->position + 1] == '/') { skip_line_comment(lexer); continue; }
+            if (lexer->source[lexer->position + 1] == '*') { skip_block_comment(lexer); continue; }
         }
 
-        if (current == '/' && lexer->source[lexer->position + 1] == '*') {
-            skip_block_comment(lexer);
-            continue;
-        }
-
-        if ((current >= 'a' && current <= 'z') || (current >= 'A' && current <= 'Z') || current == '_') {
+        if ((current >= 'a' && current <= 'z') || (current >= 'A' && current <= 'Z')) {
             identify_identifier(lexer, &token);
         } else if (current >= '0' && current <= '9') {
             identify_number(lexer, &token);
