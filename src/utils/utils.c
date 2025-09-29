@@ -5,6 +5,15 @@
 
 #define TOKEN_LIST_INITIAL_CAPACITY 16
 
+static void resize_token_list(TokenList *list, size_t new_capacity) {
+    Token *new_tokens = (Token *)realloc(list->tokens, new_capacity * sizeof(Token));
+    if (new_tokens) {
+        list->tokens = new_tokens;
+        list->capacity = new_capacity;
+    }
+    // Si realloc falla, la lista original sigue válida, pero se debe manejar el error.
+}
+
 void init_token_list(TokenList *list) {
     list->tokens = (Token *)malloc(TOKEN_LIST_INITIAL_CAPACITY * sizeof(Token));
     list->count = 0;
@@ -34,13 +43,4 @@ void add_token(TokenList *list, Token token) {
         resize_token_list(list, list->capacity * 2);
     }
     list->tokens[list->count++] = token;
-}
-
-static void resize_token_list(TokenList *list, size_t new_capacity) {
-    Token *new_tokens = (Token *)realloc(list->tokens, new_capacity * sizeof(Token));
-    if (new_tokens) {
-        list->tokens = new_tokens;
-        list->capacity = new_capacity;
-    }
-    // Si realloc falla, la lista original sigue válida, pero se debe manejar el error.
 }

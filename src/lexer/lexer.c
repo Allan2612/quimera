@@ -19,7 +19,7 @@ static int is_alpha(char c) {
 }
 
 static int is_alnum_uscore(char c) {
-    return is_alpha_uscore(c) || (c >= '0' && c <= '9' || c == '_');
+    return is_alpha(c) || (c >= '0' && c <= '9' || c == '_');
 }
 
 static int is_digit(char c) {
@@ -95,7 +95,7 @@ static void identify_number(Lexer *lexer, Token *token) {
         token->type = TOK_FLOAT;
     } else if (has_decimal > 1) {
         token->type = TOK_ERROR; // Número con más de un punto decimal
-        ErrorToken t = { .code=1001, .lexeme=lexer->source+start_pos, .length=len, .line=lexer->line, .column=lexer->column };
+        ErrorToken t = { .code=1004, .lexeme=lexer->source+start_pos, .length=len, .line=lexer->line, .column=lexer->column };
         diag_report(ST_LEXER, SV_ERROR, t, NULL);
     } else {
         token->type = TOK_INTEGER;
@@ -157,17 +157,37 @@ void tokenize(Lexer *lexer, TokenList *list) {
 
     while (lexer->position < lexer->length) {
         char current = lexer->source[lexer->position];
-        init_token(&token); // Inicializar antes de usar
 
         if (current == '/' && lexer->position + 1 < lexer->length) {
             if (lexer->source[lexer->position + 1] == '/') { skip_line_comment(lexer); continue; }
             if (lexer->source[lexer->position + 1] == '*') { skip_block_comment(lexer); continue; }
         }
 
+        if (is_space(current)) {
+            // Saltar espacios en blanco sin crear token
+            if (current == '\n') {
+                lexer->line++;
+                lexer->column = 1;
+            } else {
+                lexer->column++;
+            }
+            lexer->position++;
+            continue;
+        }
+        
+        init_token(&token); // Inicializar antes de usar
+
         if (is_alpha(current)) {
             identify_identifier(lexer, &token);
         } else if (is_digit(current)) {
             identify_number(lexer, &token);
+        } else {
+            // Caracteres no reconocidos
+            token.type = TOK_ERROR;
+            token.lexeme = lexer->source + lexer->position;
+            token.length = 1;
+            token.line = lexer->line;
+            token.column = lexer->column;
         }
 
         add_token(list, token);
