@@ -13,10 +13,10 @@ typedef struct {
     size_t column;
 } Lexer;
 
+// Inicializa el lexer con la fuente dada
 void init_lexer(Lexer *lexer, const char *source);
-void tokenize(Lexer *lexer, TokenList *list);
-void init_token_list(TokenList *list);
-void free_token_list(TokenList *list);
-void add_token(TokenList *list, Token token);
 
-#endif // LEXER_H
+// Tokeniza la fuente y llena la lista de tokens
+void tokenize(Lexer *lexer, TokenList *list);
+
+#endif 
