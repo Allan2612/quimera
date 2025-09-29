@@ -5,16 +5,15 @@
 
 typedef enum {
     TOK_IDENTIFIER,
+    TOK_KEYWORD,
+    TOK_INTEGER,
+    TOK_FLOAT,
     TOK_ARITHMETIC_OP,
     TOK_LOGIC_OP,
-    TOK_KEYWORD,
-    TOK_NUMBER,
     TOK_LITERAL,
-    TOK_FLOAT,
     TOK_STRING,
     TOK_CHAR,
     TOK_BOOLEAN,
-    TOK_COMMENT,
     TOK_DELIMITER,
     TOK_ERROR
 } TokenType;
@@ -33,23 +32,16 @@ typedef struct {
     size_t capacity;
 } TokenList;
 
-typedef struct {
-    int code;
-    char *lexeme;
-    size_t length;
-    size_t line;
-    size_t column;
-} ErrorToken;
+// Función para inicializar lista de tokens
+void init_token_list(TokenList *list);
 
-// Función para manejar errores
-void handleError(const ErrorToken *error);
+// Función para inicializar un token
+void init_token(Token *token);
 
-// Función para duplicar cadenas
-char *duplicateString(const char *str);
+// Función para liberar memoria de la lista de tokens
+void free_token_list(TokenList *list);
 
-// Función para imprimir un mensaje de depuración
-void debugPrint(const char *message);
-
-char *substr_dup(const char *src, size_t start, size_t len);
+// Función para agregar un token a la lista
+void add_token(TokenList *list, Token token);
 
 #endif // UTILS_H
