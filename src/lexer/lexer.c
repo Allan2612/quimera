@@ -107,7 +107,85 @@ static void identify_number(Lexer *lexer, Token *token) {
     }
 }
 
-static void identify_string(Lexer *lexer, Token *token) { token->type = TOK_STRING; }
+static void identify_literal(Lexer *lexer, Token *token) {
+    size_t start_pos = lexer->position;
+    size_t i = start_pos;
+    bool is_char = (lexer->source[start_pos] == '\'');
+    char quote_type = lexer->source[start_pos];
+
+    i++; // Saltar comilla inicial
+    
+    // Buscar comilla de cierre
+    while (i < lexer->length && lexer->source[i] != quote_type) {
+        // Manejar secuencias de escape básicas
+        if (lexer->source[i] == '\\' && i + 1 < lexer->length) {
+            i += 2; // Saltar el backslash y el siguiente carácter
+        } else {
+            i++;
+        }
+    }
+    
+    // Verificar si encontramos la comilla de cierre
+    if (i >= lexer->length) {
+        token->type = TOK_ERROR;
+        token->line = lexer->line;
+        token->column = lexer->column;
+        token->length = i - start_pos;
+        token->lexeme = lexer->source + start_pos;
+        ErrorToken t = { .code=1006, .lexeme=lexer->source+start_pos, .length=i - start_pos, .line=lexer->line, .column=lexer->column };
+        diag_report(ST_LEXER, SV_ERROR, t, NULL);
+        return;
+    }
+ 
+    size_t len = i - start_pos + 1; // Incluir comilla de cierre
+    size_t content_len = i - start_pos - 1; // Longitud del contenido sin comillas
+
+    token->line = lexer->line;
+    token->column = lexer->column;
+    token->length = content_len;
+    token->lexeme = lexer->source + start_pos + 1; // Excluir comilla inicial
+
+    if (is_char) {
+        // Validaciones más específicas para caracteres
+        if (content_len == 0) {
+            // Carácter vacío: ''
+            token->type = TOK_ERROR;
+            ErrorToken t = { .code=1007, .lexeme=lexer->source+start_pos, .length=len, .line=lexer->line, .column=lexer->column };
+            diag_report(ST_LEXER, SV_ERROR, t, NULL);
+            return;
+        } else if (content_len == 1) {
+            // Carácter normal: 'a'
+            token->type = TOK_CHAR;
+        } else if (content_len == 2 && lexer->source[start_pos + 1] == '\\') {
+            // Secuencia de escape: '\n', '\t', etc.
+            char escape_char = lexer->source[start_pos + 2];
+            if (escape_char == 'n' || escape_char == 't' || escape_char == 'r' || 
+                escape_char == '\\' || escape_char == '\'' || escape_char == '"' ||
+                escape_char == '0') {
+                token->type = TOK_CHAR;
+            } else {
+                // Secuencia de escape inválida
+                token->type = TOK_ERROR;
+                ErrorToken t = { .code=1008, .lexeme=lexer->source+start_pos, .length=len, .line=lexer->line, .column=lexer->column };
+                diag_report(ST_LEXER, SV_ERROR, t, NULL);
+                return;
+            }
+        } else {
+            // Carácter con más de un carácter (sin ser escape válido)
+            token->type = TOK_ERROR;
+            ErrorToken t = { .code=1005, .lexeme=lexer->source+start_pos, .length=len, .line=lexer->line, .column=lexer->column };
+            diag_report(ST_LEXER, SV_ERROR, t, NULL);
+            return;
+        }
+    } else {
+        // Es un string
+        token->type = TOK_STRING;
+    }
+
+    lexer->position = i - 1; // Posicionar en la comilla de cierre
+    lexer->column += len;
+}
+
 static void identify_delimiter(Lexer *lexer, Token *token) { token->type = TOK_DELIMITER; }
 static void identify_operator(Lexer *lexer, Token *token)  { token->type = TOK_LOGIC_OP; }
 static void identify_error(Lexer *lexer, Token *token)     { token->type = TOK_ERROR; }
@@ -181,6 +259,8 @@ void tokenize(Lexer *lexer, TokenList *list) {
             identify_identifier(lexer, &token);
         } else if (is_digit(current)) {
             identify_number(lexer, &token);
+        } else if (current == '"' || current == '\'') {
+            identify_literal(lexer, &token);
         } else {
             // Caracteres no reconocidos
             token.type = TOK_ERROR;

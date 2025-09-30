@@ -8,17 +8,21 @@
 typedef struct { int code; const char *fmt; } MsgDef;
 static MsgDef MSGS[] = {
     // --- Léxico 1xxx ---
-    {1001, "carácter no válido: '%s'"},
-    {1002, "cadena sin cierre"},
-    {1003, "comentario de bloque sin cierre"},
-    {1004, "Formato de numero invalido: '%s'"},
+    {1001, "Carácter no válido: '%s'"},
+    {1002, "Cadena sin cierre."},
+    {1003, "Comentario de bloque sin cierre."},
+    {1004, "Formato de número inválido: '%s'"},
+    {1005, "Literal char inválido."},
+    {1006, "No se cerró el literal char."},
+    {1007, "Literal char vacío."},
+    {1008, "Secuencia de escape inválida en char: '%s'"},
     // --- Sintaxis 2xxx ---
-    {2001, "se esperaba ';'"},
-    {2002, "token inesperado: '%s'"},
-    {2003, "se esperaba ')'"},
+    {2001, "Se esperaba ';'"},
+    {2002, "Token inesperado: '%s'"},
+    {2003, "Se esperaba ')'"},
     // --- Semántica 3xxx ---
-    {3001, "identificador no declarado: '%s'"},
-    {3002, "tipos incompatibles"},
+    {3001, "Identificador no declarado: '%s'"},
+    {3002, "Tipos incompatibles."},
     // --- Runtime 4xxx ---
     {4001, "índice fuera de rango"},
 };
