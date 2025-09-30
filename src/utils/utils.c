@@ -29,9 +29,6 @@ void init_token(Token *token) {
 }
 
 void free_token_list(TokenList *list) {
-    for (size_t i = 0; i < list->count; ++i) {
-        free(list->tokens[i].lexeme); // Si los lexemas fueron asignados dinámicamente
-    }
     free(list->tokens);
     list->tokens = NULL;
     list->count = 0;

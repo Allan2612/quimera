@@ -20,7 +20,7 @@ typedef enum {
 
 typedef struct {
     TokenType type;
-    char *lexeme;
+    const char *lexeme;
     size_t length;
     size_t line;
     size_t column;

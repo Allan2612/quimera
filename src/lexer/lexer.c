@@ -19,7 +19,7 @@ static int is_alpha(char c) {
 }
 
 static int is_alnum_uscore(char c) {
-    return is_alpha(c) || (c >= '0' && c <= '9' || c == '_');
+    return is_alpha(c) || ((c >= '0' && c <= '9') || c == '_');
 }
 
 static int is_digit(char c) {
