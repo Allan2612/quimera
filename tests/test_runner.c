@@ -20,6 +20,19 @@ void test_tokenize_with_tabs_and_newlines(void);
 void test_tokenize_empty_string(void);
 void test_tokenize_only_spaces(void);
 void test_lexer_position_tracking(void);
+void test_tokenize_simple_string(void);
+void test_tokenize_empty_string_literal(void);
+void test_tokenize_simple_char(void);
+void test_tokenize_char_escape_sequences(void);
+void test_tokenize_char_escape_tab(void);
+void test_tokenize_char_escape_backslash(void);
+void test_tokenize_string_with_escapes(void);
+void test_tokenize_unclosed_string(void);
+void test_tokenize_unclosed_char(void);
+void test_tokenize_empty_char(void);
+void test_tokenize_multichar_invalid(void);
+void test_tokenize_invalid_escape_sequence(void);
+void test_tokenize_mixed_with_literals(void);
 
 void register_all_tests(void) {
     // Básicos
@@ -51,4 +64,23 @@ void register_all_tests(void) {
 
     // Posicionamiento
     RUN_TEST(test_lexer_position_tracking);
+
+    // Literales
+    RUN_TEST(test_tokenize_simple_string);
+    RUN_TEST(test_tokenize_empty_string_literal);
+    RUN_TEST(test_tokenize_simple_char);
+    RUN_TEST(test_tokenize_char_escape_sequences);
+    RUN_TEST(test_tokenize_char_escape_tab);
+    RUN_TEST(test_tokenize_char_escape_backslash);
+    RUN_TEST(test_tokenize_string_with_escapes);
+
+    // Errores en literales
+    RUN_TEST(test_tokenize_unclosed_string);
+    RUN_TEST(test_tokenize_unclosed_char);
+    RUN_TEST(test_tokenize_empty_char);
+    RUN_TEST(test_tokenize_multichar_invalid);
+    RUN_TEST(test_tokenize_invalid_escape_sequence);
+
+    // Mixtos
+    RUN_TEST(test_tokenize_mixed_with_literals);
 }
