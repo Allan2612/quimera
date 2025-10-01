@@ -124,26 +124,24 @@ static void identify_literal(Lexer *lexer, Token *token) {
             i++;
         }
     }
-    
-    // Verificar si encontramos la comilla de cierre
-    if (i >= lexer->length) {
-        token->type = TOK_ERROR;
-        token->line = lexer->line;
-        token->column = lexer->column;
-        token->length = i - start_pos;
-        token->lexeme = lexer->source + start_pos;
-        ErrorToken t = { .code=1006, .lexeme=lexer->source+start_pos, .length=i - start_pos, .line=lexer->line, .column=lexer->column };
-        diag_report(ST_LEXER, SV_ERROR, t, NULL);
-        return;
-    }
- 
-    size_t len = i - start_pos + 1; // Incluir comilla de cierre
+
+    size_t len = i - start_pos; // Incluyendo comillas
     size_t content_len = i - start_pos - 1; // Longitud del contenido sin comillas
 
     token->line = lexer->line;
     token->column = lexer->column;
     token->length = content_len;
     token->lexeme = lexer->source + start_pos + 1; // Excluir comilla inicial
+
+    // Verificar si encontramos la comilla de cierre
+    if (i >= lexer->length) {
+        token->type = TOK_ERROR;
+        ErrorToken t = { .code=1006, .lexeme=lexer->source+start_pos, .length=i - start_pos, .line=lexer->line, .column=lexer->column };
+        diag_report(ST_LEXER, SV_ERROR, t, NULL);
+        lexer->position = i; // Posicionar lexer en la comilla de cierre
+        lexer->column = 0;
+        return;
+    } 
 
     if (is_char) {
         // Validaciones más específicas para caracteres
@@ -152,7 +150,6 @@ static void identify_literal(Lexer *lexer, Token *token) {
             token->type = TOK_ERROR;
             ErrorToken t = { .code=1007, .lexeme=lexer->source+start_pos, .length=len, .line=lexer->line, .column=lexer->column };
             diag_report(ST_LEXER, SV_ERROR, t, NULL);
-            return;
         } else if (content_len == 1) {
             // Carácter normal: 'a'
             token->type = TOK_CHAR;
@@ -168,21 +165,19 @@ static void identify_literal(Lexer *lexer, Token *token) {
                 token->type = TOK_ERROR;
                 ErrorToken t = { .code=1008, .lexeme=lexer->source+start_pos, .length=len, .line=lexer->line, .column=lexer->column };
                 diag_report(ST_LEXER, SV_ERROR, t, NULL);
-                return;
             }
         } else {
             // Carácter con más de un carácter (sin ser escape válido)
             token->type = TOK_ERROR;
             ErrorToken t = { .code=1005, .lexeme=lexer->source+start_pos, .length=len, .line=lexer->line, .column=lexer->column };
             diag_report(ST_LEXER, SV_ERROR, t, NULL);
-            return;
         }
     } else {
         // Es un string
         token->type = TOK_STRING;
     }
 
-    lexer->position = i - 1; // Posicionar en la comilla de cierre
+    lexer->position = i + 1; // Posicionar lexer en la comilla de cierre
     lexer->column += len;
 }
 
