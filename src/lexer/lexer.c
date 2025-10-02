@@ -214,6 +214,7 @@ static void identify_operator(Lexer *lexer, Token *token) {
     size_t start_pos = lexer->position;
     size_t len = 0;
     const char *matched_op = NULL;
+    TokenType op_type = TOK_ERROR;
     
     // Buscar el operador más largo que coincida
     // Verificar operadores aritméticos
@@ -225,44 +226,56 @@ static void identify_operator(Lexer *lexer, Token *token) {
             op_len > len) {
             len = op_len;
             matched_op = op;
-            token->type = TOK_ARITHMETIC_OP;
+            op_type = TOK_ARITHMETIC_OP;
+            // Salida temprana: no hay operadores de más de 2 caracteres
+            if (len == 2) break;
         }
     }
     
-    // Verificar operadores lógicos/comparación
-    for (size_t i = 0; i < LogicCompareOpCount && matched_op == NULL; i++) {
-        const char *op = LogicCompareOps[i];
-        size_t op_len = strlen(op);
-        if (start_pos + op_len <= lexer->length && 
-            strncmp(lexer->source + start_pos, op, op_len) == 0 && op_len > len) {
-            len = op_len;
-            matched_op = op;
-            token->type = TOK_LOGIC_OP;
+    // Verificar operadores lógicos/comparación (solo si no encontramos uno de 2 chars)
+    if (len < 2) {
+        for (size_t i = 0; i < LogicCompareOpCount; i++) {
+            const char *op = LogicCompareOps[i];
+            size_t op_len = strlen(op);
+            if (start_pos + op_len <= lexer->length && 
+                strncmp(lexer->source + start_pos, op, op_len) == 0 && 
+                op_len > len) {
+                len = op_len;
+                matched_op = op;
+                op_type = TOK_LOGIC_OP;
+                // Salida temprana: no hay operadores de más de 2 caracteres
+                if (len == 2) break;
+            }
         }
     }
     
-    // Verificar operadores de asignación
-    for (size_t i = 0; i < AssignmentOpCount && matched_op == NULL; i++) {
-        const char *op = AssignmentOps[i];
-        size_t op_len = strlen(op);
-        if (start_pos + op_len <= lexer->length && 
-            strncmp(lexer->source + start_pos, op, op_len) == 0 &&
-            op_len > len) {
-            len = op_len;
-            matched_op = op;
-            token->type = TOK_ASSIGNMENT_OP;
+    // Verificar operadores de asignación (solo si no encontramos uno de 2 chars)
+    if (len < 2) {
+        for (size_t i = 0; i < AssignmentOpCount; i++) {
+            const char *op = AssignmentOps[i];
+            size_t op_len = strlen(op);
+            if (start_pos + op_len <= lexer->length && 
+                strncmp(lexer->source + start_pos, op, op_len) == 0 &&
+                op_len > len) {
+                len = op_len;
+                matched_op = op;
+                op_type = TOK_ASSIGNMENT_OP;
+                // Salida temprana: no hay operadores de más de 2 caracteres
+                if (len == 2) break;
+            }
         }
     }
     
     if (matched_op) {
+        token->type = op_type;
         token->lexeme = lexer->source + start_pos;
         token->length = len;
         token->line = lexer->line;
-        token->column = lexer->column + len;
+        token->column = lexer->column;
         
-        // Actualizar posición del lexer
-        lexer->position += len - 1; // -1 porque tokenize() incrementará una vez más
-        lexer->column += len - 1;
+        // Actualizar posición del lexer siguiendo el patrón de otras funciones
+        lexer->position = start_pos + len - 1; // -1 porque tokenize() incrementará
+        lexer->column += (len - 1);
     } else {
         // No debería llegar aquí si is_operator() funciona correctamente
         token->type = TOK_ERROR;
