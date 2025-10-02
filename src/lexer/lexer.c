@@ -55,6 +55,18 @@ static int is_operator(char c) {
     return 0;
 }
 
+// Función para verificar si un carácter es parte de algún delimitador
+static int is_delimiter(char c) {
+    // Verificar delimitadores
+    for (size_t i = 0; i < DelimiterCount; i++) {
+        const char *delimiter = Delimiters[i];
+        if (delimiter[0] == c) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 //------------Private Lexer Functions----------------
 
 // Función para verificar si un lexeme es una palabra reservada
@@ -286,8 +298,46 @@ static void identify_operator(Lexer *lexer, Token *token) {
     }
 }
  
-static void identify_delimiter(Lexer *lexer, Token *token) { token->type = TOK_DELIMITER; }
-static void identify_error(Lexer *lexer, Token *token)     { token->type = TOK_ERROR; }
+static void identify_delimiter(Lexer *lexer, Token *token) {
+    size_t start_pos = lexer->position;
+    size_t len = 0;
+    const char *matched_delim = NULL;
+    
+    // Buscar el delimitador más largo que coincida (para escalabilidad futura)
+    for (size_t i = 0; i < DelimiterCount; i++) {
+        const char *delim = Delimiters[i];
+        size_t delim_len = strlen(delim);
+        if (start_pos + delim_len <= lexer->length && 
+            strncmp(lexer->source + start_pos, delim, delim_len) == 0 &&
+            delim_len > len) {
+            len = delim_len;
+            matched_delim = delim;
+        }
+    }
+    
+    if (matched_delim) {
+        token->type = TOK_DELIMITER;
+        token->lexeme = lexer->source + start_pos;
+        token->length = len;
+        token->line = lexer->line;
+        token->column = lexer->column;
+        
+        // Actualizar posición del lexer siguiendo el patrón de otras funciones
+        lexer->position = start_pos + len - 1; // -1 porque tokenize() incrementará
+        lexer->column += (len - 1);
+    } else {
+        // No debería llegar aquí si is_delimiter() funciona correctamente
+        token->type = TOK_ERROR;
+        token->lexeme = lexer->source + start_pos;
+        token->length = 1;
+        token->line = lexer->line;
+        token->column = lexer->column;
+        
+        // Reportar error de carácter no válido
+        ErrorToken t = { .code=1001, .lexeme=lexer->source+start_pos, .length=1, .line=lexer->line, .column=lexer->column };
+        diag_report(ST_LEXER, SV_ERROR, t, NULL);
+    }
+}
 
 // Funciones para saltar comentarios de línea
 static void skip_line_comment(Lexer *lexer) {
@@ -362,6 +412,8 @@ void tokenize(Lexer *lexer, TokenList *list) {
             identify_literal(lexer, &token);
         } else if (is_operator(current)) {
             identify_operator(lexer, &token);
+        } else if (is_delimiter(current)) {
+            identify_delimiter(lexer, &token);
         } else {
             // Caracteres no reconocidos
             token.type = TOK_ERROR;
@@ -369,6 +421,10 @@ void tokenize(Lexer *lexer, TokenList *list) {
             token.length = 1;
             token.line = lexer->line;
             token.column = lexer->column;
+            
+            // Reportar error de carácter no válido
+            ErrorToken t = { .code=1001, .lexeme=lexer->source+lexer->position, .length=1, .line=lexer->line, .column=lexer->column };
+            diag_report(ST_LEXER, SV_ERROR, t, NULL);
         }
 
         add_token(list, token);
