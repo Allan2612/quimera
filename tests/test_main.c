@@ -3,6 +3,9 @@
 
 void register_all_tests(void);
 
+void setUp(void)   { /* vacío a propósito */ }
+void tearDown(void){ /* vacío a propósito */ }
+
 int main(void) {
     // Inicializa una sola vez (modo síncrono; sin hilo)
     diag_init(false, NULL);
