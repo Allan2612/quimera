@@ -10,6 +10,7 @@ typedef enum {
     TOK_FLOAT,
     TOK_ARITHMETIC_OP,
     TOK_LOGIC_OP,
+    TOK_ASSIGNMENT_OP,
     TOK_STRING,
     TOK_CHAR,
     TOK_BOOLEAN,

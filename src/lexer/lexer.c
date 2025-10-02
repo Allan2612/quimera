@@ -26,6 +26,35 @@ static int is_digit(char c) {
     return (c >= '0' && c <= '9');
 }
 
+// Función para verificar si un carácter es parte de algún operador
+static int is_operator(char c) {
+    // Verificar operadores aritméticos
+    for (size_t i = 0; i < ArithmeticOpCount; i++) {
+        const char *operator = ArithmeticOps[i];
+        if (operator[0] == c) {
+            return 1;
+        }
+    }
+    
+    // Verificar operadores lógicos/comparación
+    for (size_t i = 0; i < LogicCompareOpCount; i++) {
+        const char *operator = LogicCompareOps[i];
+        if (operator[0] == c) {
+            return 1;
+        }
+    }
+    
+    // Verificar operadores de asignación
+    for (size_t i = 0; i < AssignmentOpCount; i++) {
+        const char *operator = AssignmentOps[i];
+        if (operator[0] == c) {
+            return 1;
+        }
+    }
+    
+    return 0;
+}
+
 //------------Private Lexer Functions----------------
 
 // Función para verificar si un lexeme es una palabra reservada
@@ -181,8 +210,70 @@ static void identify_literal(Lexer *lexer, Token *token) {
     lexer->column += len;
 }
 
+static void identify_operator(Lexer *lexer, Token *token) {
+    size_t start_pos = lexer->position;
+    size_t len = 0;
+    const char *matched_op = NULL;
+    
+    // Buscar el operador más largo que coincida
+    // Verificar operadores aritméticos
+    for (size_t i = 0; i < ArithmeticOpCount; i++) {
+        const char *op = ArithmeticOps[i];
+        size_t op_len = strlen(op);
+        if (start_pos + op_len <= lexer->length && 
+            strncmp(lexer->source + start_pos, op, op_len) == 0 &&
+            op_len > len) {
+            len = op_len;
+            matched_op = op;
+            token->type = TOK_ARITHMETIC_OP;
+        }
+    }
+    
+    // Verificar operadores lógicos/comparación
+    for (size_t i = 0; i < LogicCompareOpCount && matched_op == NULL; i++) {
+        const char *op = LogicCompareOps[i];
+        size_t op_len = strlen(op);
+        if (start_pos + op_len <= lexer->length && 
+            strncmp(lexer->source + start_pos, op, op_len) == 0 && op_len > len) {
+            len = op_len;
+            matched_op = op;
+            token->type = TOK_LOGIC_OP;
+        }
+    }
+    
+    // Verificar operadores de asignación
+    for (size_t i = 0; i < AssignmentOpCount && matched_op == NULL; i++) {
+        const char *op = AssignmentOps[i];
+        size_t op_len = strlen(op);
+        if (start_pos + op_len <= lexer->length && 
+            strncmp(lexer->source + start_pos, op, op_len) == 0 &&
+            op_len > len) {
+            len = op_len;
+            matched_op = op;
+            token->type = TOK_ASSIGNMENT_OP;
+        }
+    }
+    
+    if (matched_op) {
+        token->lexeme = lexer->source + start_pos;
+        token->length = len;
+        token->line = lexer->line;
+        token->column = lexer->column + len;
+        
+        // Actualizar posición del lexer
+        lexer->position += len - 1; // -1 porque tokenize() incrementará una vez más
+        lexer->column += len - 1;
+    } else {
+        // No debería llegar aquí si is_operator() funciona correctamente
+        token->type = TOK_ERROR;
+        token->lexeme = lexer->source + start_pos;
+        token->length = 1;
+        token->line = lexer->line;
+        token->column = lexer->column;
+    }
+}
+ 
 static void identify_delimiter(Lexer *lexer, Token *token) { token->type = TOK_DELIMITER; }
-static void identify_operator(Lexer *lexer, Token *token)  { token->type = TOK_LOGIC_OP; }
 static void identify_error(Lexer *lexer, Token *token)     { token->type = TOK_ERROR; }
 
 // Funciones para saltar comentarios de línea
@@ -256,6 +347,8 @@ void tokenize(Lexer *lexer, TokenList *list) {
             identify_number(lexer, &token);
         } else if (current == '"' || current == '\'') {
             identify_literal(lexer, &token);
+        } else if (is_operator(current)) {
+            identify_operator(lexer, &token);
         } else {
             // Caracteres no reconocidos
             token.type = TOK_ERROR;
