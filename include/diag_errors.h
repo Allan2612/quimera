@@ -14,7 +14,7 @@ typedef enum { SV_ERROR=1, SV_WARNING=2 } Severity;
 
 typedef struct {
     int     code;        // p.ej., 1001: char ilegal; 2003: se esperaba ')', etc.
-    char   *lexeme;      // puede ser NULL
+    const char   *lexeme;      // puede ser NULL
     size_t  length;      // opcional (para substr)
     size_t  line;        // 1-based
     size_t  column;      // 1-based

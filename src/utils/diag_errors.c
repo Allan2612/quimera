@@ -94,6 +94,7 @@ static void print_jsonl(const MiniDiag *d){
 }
 
 static void* worker_fn(void*_) {
+    (void)_;
     while (atomic_load(&running)) {
         pthread_mutex_lock(&q_mx);
         while (!q_head && atomic_load(&running))
