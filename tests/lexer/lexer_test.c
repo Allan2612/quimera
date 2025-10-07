@@ -210,3 +210,105 @@ void test_tokenize_mixed_with_literals(void) {
     
     free_token_list(&list);
 }
+
+// ===== TESTS MIXTOS CON DELIMITADORES =====
+
+void test_mixed_identifiers_numbers_and_delimiters(void) {
+    Lexer lexer;
+    TokenList list;
+    const char *source = "Func(x:Integer, y:Float){Print(x);Print(y);}";
+
+    init_lexer(&lexer, source);
+    init_token_list(&list);
+    tokenize(&lexer, &list);
+
+    // === Verificación general ===
+    // Esperamos delimitadores bien identificados en su orden.
+    // Delimitadores esperados en la fuente:
+    // (  :  ,  :  )  {  (  )  ;  (  )  ;  }
+    const char *expected_delims[] = { "(", ":", ",", ":", ")", "{", "(", ")", ";", "(", ")", ";", "}" };
+    size_t expected_delim_count = sizeof(expected_delims) / sizeof(expected_delims[0]);
+
+    size_t found_delims = 0;
+    for (size_t i = 0; i < list.count; ++i) {
+        const Token *t = &list.tokens[i];
+        if (t->type == TOK_DELIMITER) {
+            TEST_ASSERT_EQUAL_STRING_LEN(expected_delims[found_delims], t->lexeme, strlen(expected_delims[found_delims]));
+            found_delims++;
+        }
+    }
+    TEST_ASSERT_EQUAL(expected_delim_count, found_delims);
+
+    // === Verificación de identificadores y palabras clave ===
+    // "Func", "x", "y" deben ser identificadores
+    // "Integer", "Float", "Print" son palabras reservadas (TOK_KEYWORD)
+    int found_func = 0, found_x = 0, found_y = 0;
+    int found_integer_kw = 0, found_float_kw = 0, found_print_kw = 0;
+
+    for (size_t i = 0; i < list.count; ++i) {
+        const Token *t = &list.tokens[i];
+        if (t->type == TOK_IDENTIFIER) {
+            if (strncmp(t->lexeme, "Func", 4) == 0) found_func++;
+            if (strncmp(t->lexeme, "x", 1) == 0) found_x++;
+            if (strncmp(t->lexeme, "y", 1) == 0) found_y++;
+        } else if (t->type == TOK_KEYWORD) {
+            if (strncmp(t->lexeme, "Integer", 7) == 0) found_integer_kw++;
+            if (strncmp(t->lexeme, "Float", 5) == 0) found_float_kw++;
+            if (strncmp(t->lexeme, "Print", 5) == 0) found_print_kw++;
+        }
+    }
+
+    TEST_ASSERT_TRUE(found_func >= 1);
+    TEST_ASSERT_TRUE(found_x >= 1);
+    TEST_ASSERT_TRUE(found_y >= 1);
+    TEST_ASSERT_TRUE(found_integer_kw >= 1);
+    TEST_ASSERT_TRUE(found_float_kw >= 1);
+    TEST_ASSERT_TRUE(found_print_kw >= 2); // Hay dos llamadas a Print()
+
+    free_token_list(&list);
+}
+
+void test_delimiters_not_confused_with_operators(void) {
+    Lexer lexer;
+    TokenList list;
+    // aquí mezclamos '/', operadores y delimitadores para asegurar clasificación
+    const char *source = "a/(b+c); d>=e; f==g, h[i]";
+
+    init_lexer(&lexer, source);
+    init_token_list(&list);
+    tokenize(&lexer, &list);
+
+    // Solo verificamos algunos puntos:
+    // '(' y ')' y ';' y ',' y '[' y ']' deben ser TOK_DELIMITER,
+    // '/' debe ser TOK_ARITHMETIC_OP, '>=' y '==' deben ser TOK_LOGIC_OP.
+    int found_paren_open = 0, found_paren_close = 0, found_semis = 0, found_comma = 0, found_brack_open = 0, found_brack_close = 0;
+    int found_div = 0, found_ge = 0, found_eqeq = 0;
+
+    for (size_t i = 0; i < list.count; ++i) {
+        const Token *t = &list.tokens[i];
+        if (t->type == TOK_DELIMITER && t->length == 1) {
+            if (*t->lexeme == '(') found_paren_open++;
+            if (*t->lexeme == ')') found_paren_close++;
+            if (*t->lexeme == ';') found_semis++;
+            if (*t->lexeme == ',') found_comma++;
+            if (*t->lexeme == '[') found_brack_open++;
+            if (*t->lexeme == ']') found_brack_close++;
+        }
+        if (t->type == TOK_ARITHMETIC_OP && t->length == 1 && *t->lexeme == '/') found_div++;
+        if (t->type == TOK_LOGIC_OP && t->length == 2 && strncmp(t->lexeme, ">=", 2)==0) found_ge++;
+        if (t->type == TOK_LOGIC_OP && t->length == 2 && strncmp(t->lexeme, "==", 2)==0) found_eqeq++;
+    }
+
+    TEST_ASSERT_TRUE(found_paren_open  >= 1);
+    TEST_ASSERT_TRUE(found_paren_close >= 1);
+    TEST_ASSERT_TRUE(found_semis       >= 1);
+    TEST_ASSERT_TRUE(found_comma       >= 1);
+    TEST_ASSERT_TRUE(found_brack_open  >= 1);
+    TEST_ASSERT_TRUE(found_brack_close >= 1);
+
+    TEST_ASSERT_TRUE(found_div  >= 1);
+    TEST_ASSERT_TRUE(found_ge   >= 1);
+    TEST_ASSERT_TRUE(found_eqeq >= 1);
+
+    free_token_list(&list);
+}

@@ -47,6 +47,13 @@ void test_tokenize_operators_without_spaces(void);
 void test_tokenize_expression_with_operators(void);
 void test_operators_position_tracking(void);
 
+// Delimitadores
+void test_tokenize_single_delimiters_in_order(void);
+void test_tokenize_single_delimiters_no_spaces(void);
+void test_delimiters_position_tracking_multiline(void);
+void test_mixed_identifiers_numbers_and_delimiters(void);
+void test_delimiters_not_confused_with_operators(void);
+
 void register_all_tests(void) {
     // Básicos
     RUN_TEST(test_lexer_init);
@@ -109,4 +116,11 @@ void register_all_tests(void) {
     RUN_TEST(test_tokenize_operators_without_spaces);
     RUN_TEST(test_tokenize_expression_with_operators);
     RUN_TEST(test_operators_position_tracking);
+    
+    // Delimitadores
+    RUN_TEST(test_tokenize_single_delimiters_in_order);
+    RUN_TEST(test_tokenize_single_delimiters_no_spaces);
+    RUN_TEST(test_delimiters_position_tracking_multiline);
+    RUN_TEST(test_mixed_identifiers_numbers_and_delimiters);
+    RUN_TEST(test_delimiters_not_confused_with_operators);
 }
