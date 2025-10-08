@@ -155,14 +155,24 @@ static void identify_literal(Lexer *lexer, Token *token) {
     char quote_type = lexer->source[start_pos];
 
     i++; // Saltar comilla inicial
-    
-    // Buscar comilla de cierre
+    size_t line = lexer->line;
+    size_t column = lexer->column + 1; // Ya saltamos la comilla inicial
+
+    // Buscar comilla de cierre y actualizar línea/columna
     while (i < lexer->length && lexer->source[i] != quote_type) {
         // Manejar secuencias de escape básicas
         if (lexer->source[i] == '\\' && i + 1 < lexer->length) {
-            i += 2; // Saltar el backslash y el siguiente carácter
+            // Secuencia de escape, ejemplo: \n, \t, \"
+            i += 2;
+            column += 2;
+        } else if (lexer->source[i] == '\n') {
+            // Salto de línea real en el archivo fuente
+            i++;
+            line++;
+            column = 1;
         } else {
             i++;
+            column++;
         }
     }
 
@@ -179,10 +189,11 @@ static void identify_literal(Lexer *lexer, Token *token) {
         token->type = TOK_ERROR;
         ErrorToken t = { .code=1006, .lexeme=lexer->source+start_pos, .length=i - start_pos, .line=lexer->line, .column=lexer->column };
         diag_report(ST_LEXER, SV_ERROR, t, NULL);
-        lexer->position = i; // Posicionar lexer en la comilla de cierre
-        lexer->column = 0;
+        lexer->position = i;
+        lexer->line = line;
+        lexer->column = column;
         return;
-    } 
+    }
 
     if (is_char) {
         // Validaciones más específicas para caracteres
@@ -197,7 +208,7 @@ static void identify_literal(Lexer *lexer, Token *token) {
         } else if (content_len == 2 && lexer->source[start_pos + 1] == '\\') {
             // Secuencia de escape: '\n', '\t', etc.
             char escape_char = lexer->source[start_pos + 2];
-            if (escape_char == 'n' || escape_char == 't' || escape_char == 'r' || 
+            if (escape_char == 'n' || escape_char == 't' || escape_char == 'r' ||
                 escape_char == '\\' || escape_char == '\'' || escape_char == '"' ||
                 escape_char == '0') {
                 token->type = TOK_CHAR;
@@ -218,8 +229,9 @@ static void identify_literal(Lexer *lexer, Token *token) {
         token->type = TOK_STRING;
     }
 
-    lexer->position = i + 1; // Posicionar lexer en la comilla de cierre
-    lexer->column += len;
+    lexer->position = i + 1; // Posicionar lexer después de la comilla de cierre
+    lexer->line = line;
+    lexer->column = column + 1; // +1 por la comilla de cierre
 }
 
 static void identify_operator(Lexer *lexer, Token *token) {
