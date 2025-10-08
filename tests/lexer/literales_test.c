@@ -207,3 +207,46 @@ void test_tokenize_invalid_escape_sequence(void) {
     
     free_token_list(&list);
 }
+
+void test_literal_position_with_escapes_and_real_newlines(void) {
+    Lexer lexer;
+    TokenList list;
+
+    // Caso 1: el literal contiene una secuencia de escape "\n" -> NO avanza línea
+    const char *source1 = "\"Hola\\nMundo\"";
+    init_lexer(&lexer, source1);
+    init_token_list(&list);
+    tokenize(&lexer, &list);
+
+    TEST_ASSERT_EQUAL(1, list.count);
+    TEST_ASSERT_EQUAL(TOK_STRING, list.tokens[0].type);
+    TEST_ASSERT_EQUAL(1, list.tokens[0].line);   // sigue en la misma línea
+    TEST_ASSERT_EQUAL(1, list.tokens[0].column); // inicia en col 1
+    free_token_list(&list);
+
+    // Caso 2: el literal incluye un salto de línea real dentro del texto fuente
+    const char *source2 = "\"Hola\nMundo\""; 
+    init_lexer(&lexer, source2);
+    init_token_list(&list);
+    tokenize(&lexer, &list);
+
+    TEST_ASSERT_EQUAL(1, list.count);
+    TEST_ASSERT_EQUAL(TOK_STRING, list.tokens[0].type);
+    // Debe haber incrementado la línea dentro del literal
+    TEST_ASSERT_EQUAL(1, list.tokens[0].line);     // empieza en línea 1
+    TEST_ASSERT_TRUE(lexer.line > 1);              // el lexer ahora en línea 2
+    TEST_ASSERT_EQUAL(1, list.tokens[0].column);   // columna inicial sigue siendo 1
+    free_token_list(&list);
+
+    // Caso 3 (combinado): literal con escape y luego salto real
+    const char *source3 = "\"Linea1\\n\nLinea2\"";
+    init_lexer(&lexer, source3);
+    init_token_list(&list);
+    tokenize(&lexer, &list);
+
+    TEST_ASSERT_EQUAL(1, list.count);
+    TEST_ASSERT_EQUAL(TOK_STRING, list.tokens[0].type);
+    TEST_ASSERT_EQUAL(1, list.tokens[0].line);
+    TEST_ASSERT_TRUE(lexer.line > 1); // debe haberse avanzado de línea real
+    free_token_list(&list);
+}

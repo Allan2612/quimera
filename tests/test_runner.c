@@ -20,6 +20,8 @@ void test_tokenize_with_tabs_and_newlines(void);
 void test_tokenize_empty_string(void);
 void test_tokenize_only_spaces(void);
 void test_lexer_position_tracking(void);
+
+// Literales
 void test_tokenize_simple_string(void);
 void test_tokenize_empty_string_literal(void);
 void test_tokenize_simple_char(void);
@@ -33,6 +35,7 @@ void test_tokenize_empty_char(void);
 void test_tokenize_multichar_invalid(void);
 void test_tokenize_invalid_escape_sequence(void);
 void test_tokenize_mixed_with_literals(void);
+void test_literal_position_with_escapes_and_real_newlines(void);
 
 // Operadores
 void test_tokenize_arithmetic_operators(void);
@@ -100,6 +103,7 @@ void register_all_tests(void) {
     RUN_TEST(test_tokenize_empty_char);
     RUN_TEST(test_tokenize_multichar_invalid);
     RUN_TEST(test_tokenize_invalid_escape_sequence);
+    RUN_TEST(test_literal_position_with_escapes_and_real_newlines);
 
     // Mixtos
     RUN_TEST(test_tokenize_mixed_with_literals);

@@ -190,6 +190,60 @@ void test_lexer_position_tracking(void) {
     free_token_list(&list);
 }
 
+void test_lexer_position_tracking_all_token_types(void) {
+    Lexer lexer;
+    TokenList list;
+    // Incluye: identificador, palabra clave, entero, flotante, string, char, delimitadores, operadores aritméticos, lógicos y de asignación
+    const char *source =
+        "if\n"                // TOK_KEYWORD (línea 1, col 1)
+        "var\n"               // TOK_IDENTIFIER (línea 2, col 1)
+        "123\n"               // TOK_INTEGER (línea 3, col 1)
+        "45.6\n"              // TOK_FLOAT (línea 4, col 1)
+        "\"str\"\n"           // TOK_STRING (línea 5, col 1)
+        "'a'\n"               // TOK_CHAR (línea 6, col 1)
+        "(\n"                 // TOK_DELIMITER (línea 7, col 1)
+        ")\n"                 // TOK_DELIMITER (línea 8, col 1)
+        "{\n"                 // TOK_DELIMITER (línea 9, col 1)
+        "}\n"                 // TOK_DELIMITER (línea 10, col 1)
+        "+\n"                 // TOK_ARITHMETIC_OP (línea 11, col 1)
+        "-\n"                 // TOK_ARITHMETIC_OP (línea 12, col 1)
+        "*\n"                 // TOK_ARITHMETIC_OP (línea 13, col 1)
+        "/\n"                 // TOK_ARITHMETIC_OP (línea 14, col 1)
+        "==\n"                // TOK_LOGIC_OP (línea 15, col 1)
+        ">=\n"                // TOK_LOGIC_OP (línea 16, col 1)
+        "=\n"                 // TOK_ASSIGNMENT_OP (línea 17, col 1)
+        ";\n";                // TOK_DELIMITER (línea 18, col 1)
+
+    init_lexer(&lexer, source);
+    init_token_list(&list);
+
+    tokenize(&lexer, &list);
+
+    // Verifica tipo, línea y columna de cada token
+    TEST_ASSERT_EQUAL(18, list.count);
+
+    TEST_ASSERT_EQUAL(TOK_KEYWORD,        list.tokens[0].type);  TEST_ASSERT_EQUAL(1,  list.tokens[0].line);  TEST_ASSERT_EQUAL(1, list.tokens[0].column);
+    TEST_ASSERT_EQUAL(TOK_IDENTIFIER,     list.tokens[1].type);  TEST_ASSERT_EQUAL(2,  list.tokens[1].line);  TEST_ASSERT_EQUAL(1, list.tokens[1].column);
+    TEST_ASSERT_EQUAL(TOK_INTEGER,        list.tokens[2].type);  TEST_ASSERT_EQUAL(3,  list.tokens[2].line);  TEST_ASSERT_EQUAL(1, list.tokens[2].column);
+    TEST_ASSERT_EQUAL(TOK_FLOAT,          list.tokens[3].type);  TEST_ASSERT_EQUAL(4,  list.tokens[3].line);  TEST_ASSERT_EQUAL(1, list.tokens[3].column);
+    TEST_ASSERT_EQUAL(TOK_STRING,         list.tokens[4].type);  TEST_ASSERT_EQUAL(5,  list.tokens[4].line);  TEST_ASSERT_EQUAL(1, list.tokens[4].column);
+    TEST_ASSERT_EQUAL(TOK_CHAR,           list.tokens[5].type);  TEST_ASSERT_EQUAL(6,  list.tokens[5].line);  TEST_ASSERT_EQUAL(1, list.tokens[5].column);
+    TEST_ASSERT_EQUAL(TOK_DELIMITER,      list.tokens[6].type);  TEST_ASSERT_EQUAL(7,  list.tokens[6].line);  TEST_ASSERT_EQUAL(1, list.tokens[6].column);
+    TEST_ASSERT_EQUAL(TOK_DELIMITER,      list.tokens[7].type);  TEST_ASSERT_EQUAL(8,  list.tokens[7].line);  TEST_ASSERT_EQUAL(1, list.tokens[7].column);
+    TEST_ASSERT_EQUAL(TOK_DELIMITER,      list.tokens[8].type);  TEST_ASSERT_EQUAL(9,  list.tokens[8].line);  TEST_ASSERT_EQUAL(1, list.tokens[8].column);
+    TEST_ASSERT_EQUAL(TOK_DELIMITER,      list.tokens[9].type);  TEST_ASSERT_EQUAL(10, list.tokens[9].line);  TEST_ASSERT_EQUAL(1, list.tokens[9].column);
+    TEST_ASSERT_EQUAL(TOK_ARITHMETIC_OP,  list.tokens[10].type); TEST_ASSERT_EQUAL(11, list.tokens[10].line); TEST_ASSERT_EQUAL(1, list.tokens[10].column);
+    TEST_ASSERT_EQUAL(TOK_ARITHMETIC_OP,  list.tokens[11].type); TEST_ASSERT_EQUAL(12, list.tokens[11].line); TEST_ASSERT_EQUAL(1, list.tokens[11].column);
+    TEST_ASSERT_EQUAL(TOK_ARITHMETIC_OP,  list.tokens[12].type); TEST_ASSERT_EQUAL(13, list.tokens[12].line); TEST_ASSERT_EQUAL(1, list.tokens[12].column);
+    TEST_ASSERT_EQUAL(TOK_ARITHMETIC_OP,  list.tokens[13].type); TEST_ASSERT_EQUAL(14, list.tokens[13].line); TEST_ASSERT_EQUAL(1, list.tokens[13].column);
+    TEST_ASSERT_EQUAL(TOK_LOGIC_OP,       list.tokens[14].type); TEST_ASSERT_EQUAL(15, list.tokens[14].line); TEST_ASSERT_EQUAL(1, list.tokens[14].column);
+    TEST_ASSERT_EQUAL(TOK_LOGIC_OP,       list.tokens[15].type); TEST_ASSERT_EQUAL(16, list.tokens[15].line); TEST_ASSERT_EQUAL(1, list.tokens[15].column);
+    TEST_ASSERT_EQUAL(TOK_ASSIGNMENT_OP,  list.tokens[16].type); TEST_ASSERT_EQUAL(17, list.tokens[16].line); TEST_ASSERT_EQUAL(1, list.tokens[16].column);
+    TEST_ASSERT_EQUAL(TOK_DELIMITER,      list.tokens[17].type); TEST_ASSERT_EQUAL(18, list.tokens[17].line); TEST_ASSERT_EQUAL(1, list.tokens[17].column);
+
+    free_token_list(&list);
+}
+
 // ===== TESTS MIXTOS CON LITERALES =====
 
 void test_tokenize_mixed_with_literals(void) {
