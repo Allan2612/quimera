@@ -210,6 +210,26 @@ void test_tokenize_assignment_vs_equality(void) {
     free_token_list(&list);
 }
 
+void test_tokenize_compound_assignment_operators(void) {
+    Lexer lexer;
+    TokenList list;
+    const char *source = "+= -=";
+
+    init_lexer(&lexer, source);
+    init_token_list(&list);
+    tokenize(&lexer, &list);
+
+    TEST_ASSERT_EQUAL(2, list.count);
+
+    TEST_ASSERT_EQUAL(TOK_ASSIGNMENT_OP, list.tokens[0].type);
+    TEST_ASSERT_EQUAL_STRING_LEN("+=", list.tokens[0].lexeme, 2);
+
+    TEST_ASSERT_EQUAL(TOK_ASSIGNMENT_OP, list.tokens[1].type);
+    TEST_ASSERT_EQUAL_STRING_LEN("-=", list.tokens[1].lexeme, 2);
+
+    free_token_list(&list);
+}
+
 // ===== TESTS MIXTOS Y CASOS COMPLEJOS =====
 
 void test_tokenize_operators_without_spaces(void) {

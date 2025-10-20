@@ -46,6 +46,7 @@ void test_tokenize_logical_operators(void);
 void test_tokenize_greater_vs_greater_equal(void);
 void test_tokenize_assignment_operator(void);
 void test_tokenize_assignment_vs_equality(void);
+void test_tokenize_compound_assignment_operators(void);
 void test_tokenize_operators_without_spaces(void);
 void test_tokenize_expression_with_operators(void);
 void test_operators_position_tracking(void);
@@ -117,6 +118,7 @@ void register_all_tests(void) {
     RUN_TEST(test_tokenize_greater_vs_greater_equal);
     RUN_TEST(test_tokenize_assignment_operator);
     RUN_TEST(test_tokenize_assignment_vs_equality);
+    RUN_TEST(test_tokenize_compound_assignment_operators);
     RUN_TEST(test_tokenize_operators_without_spaces);
     RUN_TEST(test_tokenize_expression_with_operators);
     RUN_TEST(test_operators_position_tracking);
