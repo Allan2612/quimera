@@ -86,9 +86,8 @@ static int is_keyword_lexeme(const char *lexeme, size_t len) {
 // Función para identificar lexemas de identificadores o palabras reservadas
 static void identify_identifier(Lexer *lexer, Token *token) { 
     size_t start_pos = lexer->position;
-    size_t i = start_pos;
+    size_t i = start_pos + 1;
 
-    i++;
     while (i < lexer->length && is_alnum_uscore(lexer->source[i])) {
         i++;
     }
@@ -106,21 +105,19 @@ static void identify_identifier(Lexer *lexer, Token *token) {
         token->type = TOK_IDENTIFIER;
     }
 
-    lexer->position = i - 1;
-    if (len > 0) {
-        lexer->column += (len - 1);
-    }
+    // Dejar lexer->position en el primer carácter no procesado
+    lexer->position = i;
+    lexer->column += len;
 }
 
 static void identify_number(Lexer *lexer, Token *token) { 
     size_t start_pos = lexer->position;
-    size_t i = start_pos;
+    size_t i = start_pos + 1;
     int has_decimal = 0;
 
-    i++;
     while (i < lexer->length && (is_digit(lexer->source[i]) || lexer->source[i] == '.')) {
         if (lexer->source[i] == '.') {
-            has_decimal ++;
+            has_decimal++;
         }
         i++;
     }
@@ -142,19 +139,16 @@ static void identify_number(Lexer *lexer, Token *token) {
         token->type = TOK_INTEGER;
     }
 
-    lexer->position = i - 1;
-    if (len > 0) {
-        lexer->column += (len - 1);
-    }
+    lexer->position = i;
+    lexer->column += len;
 }
 
 static void identify_literal(Lexer *lexer, Token *token) {
     size_t start_pos = lexer->position;
-    size_t i = start_pos;
+    size_t i = start_pos + 1; // Saltar comilla inicial
     bool is_char = (lexer->source[start_pos] == '\'');
     char quote_type = lexer->source[start_pos];
 
-    i++; // Saltar comilla inicial
     size_t line = lexer->line;
     size_t column = lexer->column + 1; // Ya saltamos la comilla inicial
 
@@ -162,7 +156,7 @@ static void identify_literal(Lexer *lexer, Token *token) {
     while (i < lexer->length && lexer->source[i] != quote_type) {
         // Manejar secuencias de escape básicas
         if (lexer->source[i] == '\\' && i + 1 < lexer->length) {
-            // Secuencia de escape, ejemplo: \n, \t, \"
+            // Manejo de secuencias de escape, ejemplo: \n, \t, \"
             i += 2;
             column += 2;
         } else if (lexer->source[i] == '\n') {
@@ -176,13 +170,18 @@ static void identify_literal(Lexer *lexer, Token *token) {
         }
     }
 
-    size_t len = i - start_pos; // Incluyendo comillas
-    size_t content_len = i - start_pos - 1; // Longitud del contenido sin comillas
+    // Incluir la comilla de cierre si la encontramos
+    if (i < lexer->length && lexer->source[i] == quote_type) {
+        i++; 
+        column++;
+    }
+
+    size_t len = i - start_pos; // Longitud incluyendo comillas
 
     token->line = lexer->line;
     token->column = lexer->column;
-    token->length = content_len;
-    token->lexeme = lexer->source + start_pos + 1; // Excluir comilla inicial
+    token->length = len;
+    token->lexeme = lexer->source + start_pos; 
 
     // Verificar si encontramos la comilla de cierre
     if (i >= lexer->length) {
@@ -194,6 +193,8 @@ static void identify_literal(Lexer *lexer, Token *token) {
         lexer->column = column;
         return;
     }
+
+    size_t content_len = len - 2; // Longitud del contenido sin comillas
 
     if (is_char) {
         // Validaciones más específicas para caracteres
@@ -229,9 +230,9 @@ static void identify_literal(Lexer *lexer, Token *token) {
         token->type = TOK_STRING;
     }
 
-    lexer->position = i + 1; // Posicionar lexer después de la comilla de cierre
+    lexer->position = i;
     lexer->line = line;
-    lexer->column = column + 1; // +1 por la comilla de cierre
+    lexer->column = column;
 }
 
 static void identify_operator(Lexer *lexer, Token *token) {
@@ -290,24 +291,25 @@ static void identify_operator(Lexer *lexer, Token *token) {
         }
     }
     
+    if (len == 0) {
+        len = 1; // Al menos avanzar 1 carácter
+    }
+
+    token->lexeme = lexer->source + start_pos;
+    token->line = lexer->line;
+    token->column = lexer->column;
+    token->length = len;
+
     if (matched_op) {
         token->type = op_type;
-        token->lexeme = lexer->source + start_pos;
-        token->length = len;
-        token->line = lexer->line;
-        token->column = lexer->column;
-        
-        // Actualizar posición del lexer siguiendo el patrón de otras funciones
-        lexer->position = start_pos + len - 1; // -1 porque tokenize() incrementará
-        lexer->column += (len - 1);
     } else {
         // No debería llegar aquí si is_operator() funciona correctamente
         token->type = TOK_ERROR;
-        token->lexeme = lexer->source + start_pos;
-        token->length = 1;
-        token->line = lexer->line;
-        token->column = lexer->column;
     }
+
+    // Avanzar al primer carácter no procesado
+    lexer->position = start_pos + len;
+    lexer->column += len;
 }
  
 static void identify_delimiter(Lexer *lexer, Token *token) {
@@ -327,28 +329,28 @@ static void identify_delimiter(Lexer *lexer, Token *token) {
         }
     }
     
+    if (len == 0) {
+        len = 1; // Al menos avanzar 1 carácter
+    }
+
+    token->lexeme = lexer->source + start_pos;
+    token->line = lexer->line;
+    token->column = lexer->column;
+    token->length = len;
+
     if (matched_delim) {
         token->type = TOK_DELIMITER;
-        token->lexeme = lexer->source + start_pos;
-        token->length = len;
-        token->line = lexer->line;
-        token->column = lexer->column;
-        
-        // Actualizar posición del lexer siguiendo el patrón de otras funciones
-        lexer->position = start_pos + len - 1; // -1 porque tokenize() incrementará
-        lexer->column += (len - 1);
     } else {
         // No debería llegar aquí si is_delimiter() funciona correctamente
         token->type = TOK_ERROR;
-        token->lexeme = lexer->source + start_pos;
-        token->length = 1;
-        token->line = lexer->line;
-        token->column = lexer->column;
         
         // Reportar error de carácter no válido
         ErrorToken t = { .code=1001, .lexeme=lexer->source+start_pos, .length=1, .line=lexer->line, .column=lexer->column };
         diag_report(ST_LEXER, SV_ERROR, t, NULL);
     }
+
+    lexer->position = start_pos + len;
+    lexer->column += len;
 }
 
 // Funciones para saltar comentarios de línea
@@ -359,6 +361,12 @@ static void skip_line_comment(Lexer *lexer) {
         lexer->position++;
         lexer->column++;
     }
+    if (lexer->position < lexer->length && lexer->source[lexer->position] == '\n') {
+        // Avanzar *después* del '\n'
+        lexer->position++;
+        lexer->line++;
+        lexer->column = 1;
+    }
 }
 
 // Función para saltar comentarios de bloque
@@ -366,8 +374,9 @@ static void skip_block_comment(Lexer *lexer) {
     lexer->position += 2;
     lexer->column += 2;
     while (lexer->position < lexer->length) {
-        if (lexer->source[lexer->position] == '*' && lexer->source[lexer->position + 1] == '/') {
+        if (lexer->position + 1 < lexer->length && lexer->source[lexer->position] == '*' && lexer->source[lexer->position + 1] == '/') {
             lexer->position += 2;
+            // actualizamos columna respecto al cierre '*/'
             lexer->column += 2;
             break;
         }
@@ -427,7 +436,7 @@ void tokenize(Lexer *lexer, TokenList *list) {
         } else if (is_delimiter(current)) {
             identify_delimiter(lexer, &token);
         } else {
-            // Caracteres no reconocidos
+            // Caracteres no reconocidos: crear token de error y avanzar 1 posición
             token.type = TOK_ERROR;
             token.lexeme = lexer->source + lexer->position;
             token.length = 1;
@@ -437,16 +446,15 @@ void tokenize(Lexer *lexer, TokenList *list) {
             // Reportar error de carácter no válido
             ErrorToken t = { .code=1001, .lexeme=lexer->source+lexer->position, .length=1, .line=lexer->line, .column=lexer->column };
             diag_report(ST_LEXER, SV_ERROR, t, NULL);
+
+            // Avanzar manualmente al siguiente carácter
+            lexer->position++;
+            lexer->column++;
         }
 
         add_token(list, token);
-        // Actualización de posición, línea y columna
-        lexer->position++;
-        if (current == '\n') {
-            lexer->line++;
-            lexer->column = 1;
-        } else {
-            lexer->column++;
-        }
+
+        // Nota: NO actualizamos lexer->position/line/column aquí por defecto.
+        // Cada función identify_* y skip_* deja la posición en el siguiente carácter a procesar.
     }
 }
