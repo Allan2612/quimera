@@ -19,8 +19,8 @@ void test_tokenize_simple_string(void) {
     
     TEST_ASSERT_EQUAL(1, list.count);
     TEST_ASSERT_EQUAL(TOK_STRING, list.tokens[0].type);
-    TEST_ASSERT_EQUAL_STRING_LEN("hello world", list.tokens[0].lexeme, 11);
-    TEST_ASSERT_EQUAL(11, list.tokens[0].length);
+    TEST_ASSERT_EQUAL_STRING_LEN("\"hello world\"", list.tokens[0].lexeme, 13);
+    TEST_ASSERT_EQUAL(13, list.tokens[0].length);
     
     free_token_list(&list);
 }
@@ -37,7 +37,8 @@ void test_tokenize_empty_string_literal(void) {
     
     TEST_ASSERT_EQUAL(1, list.count);
     TEST_ASSERT_EQUAL(TOK_STRING, list.tokens[0].type);
-    TEST_ASSERT_EQUAL(0, list.tokens[0].length);
+    TEST_ASSERT_EQUAL_STRING_LEN("\"\"", list.tokens[0].lexeme, 2);
+    TEST_ASSERT_EQUAL(2, list.tokens[0].length);
     
     free_token_list(&list);
 }
@@ -54,8 +55,8 @@ void test_tokenize_simple_char(void) {
     
     TEST_ASSERT_EQUAL(1, list.count);
     TEST_ASSERT_EQUAL(TOK_CHAR, list.tokens[0].type);
-    TEST_ASSERT_EQUAL_STRING_LEN("a", list.tokens[0].lexeme, 1);
-    TEST_ASSERT_EQUAL(1, list.tokens[0].length);
+    TEST_ASSERT_EQUAL_STRING_LEN("'a'", list.tokens[0].lexeme, 3);
+    TEST_ASSERT_EQUAL(3, list.tokens[0].length);
     
     free_token_list(&list);
 }
@@ -72,7 +73,8 @@ void test_tokenize_char_escape_sequences(void) {
     
     TEST_ASSERT_EQUAL(1, list.count);
     TEST_ASSERT_EQUAL(TOK_CHAR, list.tokens[0].type);
-    TEST_ASSERT_EQUAL_STRING_LEN("\\n", list.tokens[0].lexeme, 2);
+    TEST_ASSERT_EQUAL_STRING_LEN("'\\n'", list.tokens[0].lexeme, 4);
+    TEST_ASSERT_EQUAL(4, list.tokens[0].length);
     
     free_token_list(&list);
 }
@@ -89,6 +91,8 @@ void test_tokenize_char_escape_tab(void) {
     
     TEST_ASSERT_EQUAL(1, list.count);
     TEST_ASSERT_EQUAL(TOK_CHAR, list.tokens[0].type);
+    TEST_ASSERT_EQUAL_STRING_LEN("'\\t'", list.tokens[0].lexeme, 4);
+    TEST_ASSERT_EQUAL(4, list.tokens[0].length);
     
     free_token_list(&list);
 }
@@ -105,6 +109,8 @@ void test_tokenize_char_escape_backslash(void) {
     
     TEST_ASSERT_EQUAL(1, list.count);
     TEST_ASSERT_EQUAL(TOK_CHAR, list.tokens[0].type);
+    TEST_ASSERT_EQUAL_STRING_LEN("'\\\\'", list.tokens[0].lexeme, 4);
+    TEST_ASSERT_EQUAL(4, list.tokens[0].length);
     
     free_token_list(&list);
 }
@@ -121,7 +127,8 @@ void test_tokenize_string_with_escapes(void) {
     
     TEST_ASSERT_EQUAL(1, list.count);
     TEST_ASSERT_EQUAL(TOK_STRING, list.tokens[0].type);
-    TEST_ASSERT_EQUAL_STRING_LEN("Hello\\nWorld", list.tokens[0].lexeme, 12);
+    TEST_ASSERT_EQUAL_STRING_LEN("\"Hello\\nWorld\"", list.tokens[0].lexeme, 14);
+    TEST_ASSERT_EQUAL(14, list.tokens[0].length);
     
     free_token_list(&list);
 }

@@ -174,17 +174,7 @@ static void identify_literal(Lexer *lexer, Token *token) {
     if (i < lexer->length && lexer->source[i] == quote_type) {
         i++; 
         column++;
-    }
-
-    size_t len = i - start_pos; // Longitud incluyendo comillas
-
-    token->line = lexer->line;
-    token->column = lexer->column;
-    token->length = len;
-    token->lexeme = lexer->source + start_pos; 
-
-    // Verificar si encontramos la comilla de cierre
-    if (i >= lexer->length) {
+    }else{
         token->type = TOK_ERROR;
         ErrorToken t = { .code=1006, .lexeme=lexer->source+start_pos, .length=i - start_pos, .line=lexer->line, .column=lexer->column };
         diag_report(ST_LEXER, SV_ERROR, t, NULL);
@@ -193,6 +183,13 @@ static void identify_literal(Lexer *lexer, Token *token) {
         lexer->column = column;
         return;
     }
+
+    size_t len = i - start_pos; // Longitud incluyendo comillas
+
+    token->line = lexer->line;
+    token->column = lexer->column;
+    token->length = len;
+    token->lexeme = lexer->source + start_pos; 
 
     size_t content_len = len - 2; // Longitud del contenido sin comillas
 
