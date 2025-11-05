@@ -4,11 +4,6 @@
 // prototipos (de lexer_test.c)
 void test_lexer_init(void);
 void test_token_list_operations(void);
-void test_tokenize_simple_identifier(void);
-void test_tokenize_identifier_with_underscore(void);
-void test_tokenize_identifier_with_numbers(void);
-void test_tokenize_keyword_if(void);
-void test_tokenize_keyword_else(void);
 void test_tokenize_integer(void);
 void test_tokenize_float_number(void);
 void test_tokenize_invalid_double_dot_number(void);
@@ -20,6 +15,19 @@ void test_tokenize_with_tabs_and_newlines(void);
 void test_tokenize_empty_string(void);
 void test_tokenize_only_spaces(void);
 void test_lexer_position_tracking(void);
+
+// Identificadores
+void test_tokenize_simple_identifier(void);
+void test_tokenize_identifier_with_underscore(void);
+void test_tokenize_identifier_with_numbers(void);
+void test_tokenize_identifier_with_numbers_and_underscores(void);
+
+// Palabras reservadas
+void test_tokenize_keywords_if(void);
+void test_tokenize_keywords_types(void);
+void test_tokenize_keywords_loop(void);
+void test_tokenize_keywords_functions(void);
+void test_tokenize_keywords_io(void);
 
 // Literales
 void test_tokenize_simple_string(void);
@@ -67,10 +75,14 @@ void register_all_tests(void) {
     RUN_TEST(test_tokenize_simple_identifier);
     RUN_TEST(test_tokenize_identifier_with_underscore);
     RUN_TEST(test_tokenize_identifier_with_numbers);
+    RUN_TEST(test_tokenize_identifier_with_numbers_and_underscores);
 
     // Palabras reservadas
-    RUN_TEST(test_tokenize_keyword_if);
-    RUN_TEST(test_tokenize_keyword_else);
+    RUN_TEST(test_tokenize_keywords_if);
+    RUN_TEST(test_tokenize_keywords_types);
+    RUN_TEST(test_tokenize_keywords_loop);
+    RUN_TEST(test_tokenize_keywords_functions);
+    RUN_TEST(test_tokenize_keywords_io);
 
     // Números
     RUN_TEST(test_tokenize_integer);
