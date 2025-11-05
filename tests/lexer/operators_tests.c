@@ -10,14 +10,14 @@
 void test_tokenize_arithmetic_operators(void) {
     Lexer lexer;
     TokenList list;
-    const char *source = "+ - * / %";
+    const char *source = "+ - / % * **";
     
     init_lexer(&lexer, source);
     init_token_list(&list);
     
     tokenize(&lexer, &list);
     
-    TEST_ASSERT_EQUAL(5, list.count);
+    TEST_ASSERT_EQUAL(6, list.count);
     
     // Verificar cada operador
     TEST_ASSERT_EQUAL(TOK_ARITHMETIC_OP, list.tokens[0].type);
@@ -27,13 +27,16 @@ void test_tokenize_arithmetic_operators(void) {
     TEST_ASSERT_EQUAL_STRING_LEN("-", list.tokens[1].lexeme, 1);
     
     TEST_ASSERT_EQUAL(TOK_ARITHMETIC_OP, list.tokens[2].type);
-    TEST_ASSERT_EQUAL_STRING_LEN("*", list.tokens[2].lexeme, 1);
+    TEST_ASSERT_EQUAL_STRING_LEN("/", list.tokens[2].lexeme, 1);
     
     TEST_ASSERT_EQUAL(TOK_ARITHMETIC_OP, list.tokens[3].type);
-    TEST_ASSERT_EQUAL_STRING_LEN("/", list.tokens[3].lexeme, 1);
+    TEST_ASSERT_EQUAL_STRING_LEN("%", list.tokens[3].lexeme, 1);
     
     TEST_ASSERT_EQUAL(TOK_ARITHMETIC_OP, list.tokens[4].type);
-    TEST_ASSERT_EQUAL_STRING_LEN("%", list.tokens[4].lexeme, 1);
+    TEST_ASSERT_EQUAL_STRING_LEN("*", list.tokens[4].lexeme, 1);
+    
+    TEST_ASSERT_EQUAL(TOK_ARITHMETIC_OP, list.tokens[5].type);
+    TEST_ASSERT_EQUAL_STRING_LEN("**", list.tokens[5].lexeme, 2);
     
     free_token_list(&list);
 }
@@ -170,17 +173,23 @@ void test_tokenize_greater_vs_greater_equal(void) {
 void test_tokenize_assignment_operator(void) {
     Lexer lexer;
     TokenList list;
-    const char *source = "=";
+    const char *source = "= += -=";
     
     init_lexer(&lexer, source);
     init_token_list(&list);
     
     tokenize(&lexer, &list);
     
-    TEST_ASSERT_EQUAL(1, list.count);
+    TEST_ASSERT_EQUAL(3, list.count);
     TEST_ASSERT_EQUAL(TOK_ASSIGNMENT_OP, list.tokens[0].type);
     TEST_ASSERT_EQUAL_STRING_LEN("=", list.tokens[0].lexeme, 1);
     TEST_ASSERT_EQUAL(1, list.tokens[0].length);
+    TEST_ASSERT_EQUAL(TOK_ASSIGNMENT_OP, list.tokens[1].type);
+    TEST_ASSERT_EQUAL_STRING_LEN("+=", list.tokens[1].lexeme, 2);
+    TEST_ASSERT_EQUAL(2, list.tokens[1].length);
+    TEST_ASSERT_EQUAL(TOK_ASSIGNMENT_OP, list.tokens[2].type);
+    TEST_ASSERT_EQUAL_STRING_LEN("-=", list.tokens[2].lexeme, 2);
+    TEST_ASSERT_EQUAL(2, list.tokens[2].length);
     
     free_token_list(&list);
 }

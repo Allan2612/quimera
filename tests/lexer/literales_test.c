@@ -61,6 +61,22 @@ void test_tokenize_simple_char(void) {
     free_token_list(&list);
 }
 
+void test_tokenize_empty_char(void) {
+    Lexer lexer;
+    TokenList list;
+    const char *source = "''";
+    
+    init_lexer(&lexer, source);
+    init_token_list(&list);
+    
+    tokenize(&lexer, &list);
+    
+    TEST_ASSERT_EQUAL(1, list.count);
+    TEST_ASSERT_EQUAL(TOK_ERROR, list.tokens[0].type);
+    
+    free_token_list(&list);
+}
+
 void test_tokenize_char_escape_sequences(void) {
     Lexer lexer;
     TokenList list;
@@ -167,22 +183,6 @@ void test_tokenize_unclosed_char(void) {
     free_token_list(&list);
 }
 
-void test_tokenize_empty_char(void) {
-    Lexer lexer;
-    TokenList list;
-    const char *source = "''";
-    
-    init_lexer(&lexer, source);
-    init_token_list(&list);
-    
-    tokenize(&lexer, &list);
-    
-    TEST_ASSERT_EQUAL(1, list.count);
-    TEST_ASSERT_EQUAL(TOK_ERROR, list.tokens[0].type);
-    
-    free_token_list(&list);
-}
-
 void test_tokenize_multichar_invalid(void) {
     Lexer lexer;
     TokenList list;
@@ -241,8 +241,8 @@ void test_literal_position_with_escapes_and_real_newlines(void) {
     TEST_ASSERT_EQUAL(TOK_STRING, list.tokens[0].type);
     // Debe haber incrementado la línea dentro del literal
     TEST_ASSERT_EQUAL(1, list.tokens[0].line);     // empieza en línea 1
-    TEST_ASSERT_TRUE(lexer.line > 1);              // el lexer ahora en línea 2
     TEST_ASSERT_EQUAL(1, list.tokens[0].column);   // columna inicial sigue siendo 1
+    TEST_ASSERT_TRUE(lexer.line > 1);              // el lexer ahora en línea 2
     free_token_list(&list);
 
     // Caso 3 (combinado): literal con escape y luego salto real

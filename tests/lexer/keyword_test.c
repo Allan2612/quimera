@@ -137,3 +137,55 @@ void test_tokenize_keywords_io(void) {
     }
     free_token_list(&list);
 }
+
+void test_tokenize_keywords_boolean_literals(void) {
+    Lexer lexer;
+    TokenList list;
+    const char *source = "True False";
+    
+    init_lexer(&lexer, source);
+    init_token_list(&list);
+    
+    tokenize(&lexer, &list);
+    
+    TEST_ASSERT_EQUAL(2, list.count);
+    const char *expected_lexemes[] = { "True", "False" };
+    for (size_t i = 0; i < 2; i++) {
+        TEST_ASSERT_EQUAL(TOK_KEYWORD, list.tokens[i].type);
+        TEST_ASSERT_EQUAL_STRING_LEN(expected_lexemes[i], list.tokens[i].lexeme, strlen(expected_lexemes[i]));
+        TEST_ASSERT_EQUAL(strlen(expected_lexemes[i]), list.tokens[i].length);
+        TEST_ASSERT_EQUAL(1, list.tokens[i].line);
+        size_t expected_column = 1;
+        for (size_t j = 0; j < i; j++) {
+            expected_column += strlen(expected_lexemes[j]) + 1; // +1 por el espacio
+        }
+        TEST_ASSERT_EQUAL(expected_column, list.tokens[i].column);
+    }
+    free_token_list(&list);
+}
+
+void test_tokenize_keywords_logic(void) {
+    Lexer lexer;
+    TokenList list;
+    const char *source = "And Or Not";
+    
+    init_lexer(&lexer, source);
+    init_token_list(&list);
+    
+    tokenize(&lexer, &list);
+    
+    TEST_ASSERT_EQUAL(3, list.count);
+    const char *expected_lexemes[] = { "And", "Or", "Not" };
+    for (size_t i = 0; i < 3; i++) {
+        TEST_ASSERT_EQUAL(TOK_KEYWORD, list.tokens[i].type);
+        TEST_ASSERT_EQUAL_STRING_LEN(expected_lexemes[i], list.tokens[i].lexeme, strlen(expected_lexemes[i]));
+        TEST_ASSERT_EQUAL(strlen(expected_lexemes[i]), list.tokens[i].length);
+        TEST_ASSERT_EQUAL(1, list.tokens[i].line);
+        size_t expected_column = 1;
+        for (size_t j = 0; j < i; j++) {
+            expected_column += strlen(expected_lexemes[j]) + 1; // +1 por el espacio
+        }
+        TEST_ASSERT_EQUAL(expected_column, list.tokens[i].column);
+    }
+    free_token_list(&list);
+}

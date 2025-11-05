@@ -3,7 +3,7 @@
 // Reservadas
 const char * const ReservedWords[] = {
     "Char","String","Integer","Float","Boolean", "Null","True","False",
-    "If","ElseIf","Else","For","While","Print","Read","Return","End"
+    "If","ElseIf","Else","For","While","Print","Read","Return","End","And","Or","Not"
 };
 const size_t ReservedWordCount = sizeof(ReservedWords)/sizeof(ReservedWords[0]);
 

@@ -76,10 +76,20 @@ void test_delimiters_position_tracking_multiline(void) {
     TEST_ASSERT_EQUAL(2, list.tokens[1].line);
     TEST_ASSERT_EQUAL(1, list.tokens[1].column);
 
+    // a en línea 2, columna 3
+    TEST_ASSERT_EQUAL(TOK_IDENTIFIER, list.tokens[2].type);
+    TEST_ASSERT_EQUAL(2, list.tokens[2].line);
+    TEST_ASSERT_EQUAL(2, list.tokens[2].column);
+
     // , en línea 2, columna 3 (después de 'a')
     TEST_ASSERT_EQUAL(TOK_DELIMITER, list.tokens[3].type);
     TEST_ASSERT_EQUAL(2, list.tokens[3].line);
     TEST_ASSERT_EQUAL(3, list.tokens[3].column);
+
+    // b en línea 2, columna 3
+    TEST_ASSERT_EQUAL(TOK_IDENTIFIER, list.tokens[4].type);
+    TEST_ASSERT_EQUAL(2, list.tokens[4].line);
+    TEST_ASSERT_EQUAL(4, list.tokens[4].column);
 
     // ) en línea 2, columna 5 (después de 'b')
     TEST_ASSERT_EQUAL(TOK_DELIMITER, list.tokens[5].type);
