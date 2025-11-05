@@ -28,17 +28,19 @@ Instala toolchain:
 pacman -S --needed mingw-w64-ucrt-x86_64-toolchain
 ```
 
-Agrega al PATH (usuario): `C:\msys64\ucrt64\bin`  
+Agrega al PATH (usuario): `C:\msys64\ucrt64\bin` y `C:\msys64\usr\bin`
 Verifica en una terminal nueva:
 
 ```sh
 gcc --version
 gdb --version
+make --version
 where gcc
 where gdb
+where make
 ```
 
-Si make “no se reconoce”, usa la terminal de MSYS2 o agrega también `C:\msys64\usr\bin` al PATH.
+Si “no se reconoce” make usa `pacman -S --needed base-devel`.
 
 ---
 
