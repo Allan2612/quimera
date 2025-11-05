@@ -91,6 +91,21 @@ test: tests
 	done; \
 	echo "Ran $$total test executables; FAILS=$$fails"
 
+# Targets para ejecutar solo un subconjunto de tests por patrón en el nombre
+.PHONY: test-% testlex
+
+# Uso: make test-lexer   (ejecuta solo los binarios de tests cuyo path contenga "lexer")
+test-%: tests
+	@pattern=$*; fails=0; total=0; \
+	for t in $(TEST_BINS); do \
+		echo "$$t" | grep -qi "$$pattern" || continue; \
+		echo "==> $$t"; "$$t"; ec=$$?; echo "   (exit=$$ec)"; \
+		if [ $$ec -ne 0 ]; then fails=$$((fails+1)); fi; \
+		total=$$((total+1)); \
+	done; \
+		if [ $$total -eq 0 ]; then echo "No tests matched pattern '$$pattern'."; exit 1; fi; \
+		echo "Ran $$total test executables matching '$$pattern'; FAILS=$$fails"
+
 
 # Limpieza
 clean:

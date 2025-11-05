@@ -68,7 +68,7 @@ void test_delimiters_position_tracking_multiline(void);
 void test_mixed_identifiers_numbers_and_delimiters(void);
 void test_delimiters_not_confused_with_operators(void);
 
-void register_all_tests(void) {
+void register_lexer_tests(void) {
     // Básicos
     RUN_TEST(test_lexer_init);
     RUN_TEST(test_token_list_operations);
