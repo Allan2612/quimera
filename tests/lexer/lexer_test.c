@@ -1,5 +1,7 @@
 #include "unity.h"
 #include "lexer.h"
+#include "ast.h"
+#include "interner.h"
 #include "utils.h"
 #include "diag_errors.h"
 #include <stdio.h>
@@ -8,10 +10,18 @@
 // ===== TESTS DE FUNCIONES HELPER =====
 
 void test_lexer_init(void) {
+    AstArena *arena = ast_arena_new();
+
+    Interner I;
+    interner_init(&I, arena, 256);
+
+    Interned S;
+    interner_bootstrap_quimera(&I, &S);
+
     Lexer lexer;
     const char *source = "test input";
 
-    init_lexer(&lexer, source);
+    init_lexer(&lexer, source, &I, &S);
 
     TEST_ASSERT_EQUAL_PTR(source, lexer.source);
     TEST_ASSERT_EQUAL_INT((int)strlen(source), lexer.length);  // <-- 10
@@ -34,11 +44,19 @@ void test_token_list_operations(void) {
 // ===== TESTS DE MÚLTIPLES TOKENS =====
 
 void test_tokenize_multiple_tokens(void) {
+    AstArena *arena = ast_arena_new();
+
+    Interner I;
+    interner_init(&I, arena, 256);
+
+    Interned S;
+    interner_bootstrap_quimera(&I, &S);
+
     Lexer lexer;
     TokenList list;
     const char *source = "If variable 123";
-    
-    init_lexer(&lexer, source);
+
+    init_lexer(&lexer, source, &I, &S);
     init_token_list(&list);
     
     tokenize(&lexer, &list);
@@ -57,15 +75,25 @@ void test_tokenize_multiple_tokens(void) {
     TEST_ASSERT_EQUAL(TOK_INTEGER, list.tokens[2].type);
     TEST_ASSERT_EQUAL_STRING_LEN("123", list.tokens[2].lexeme, 3);
     
+    interner_destroy(&I);
     free_token_list(&list);
+    ast_arena_free(arena);
 }
 
 void test_tokenize_identifier_and_number_mixed(void) {
+    AstArena *arena = ast_arena_new();
+
+    Interner I;
+    interner_init(&I, arena, 256);
+
+    Interned S;
+    interner_bootstrap_quimera(&I, &S);
+
     Lexer lexer;
     TokenList list;
     const char *source = "count 42 name";
-    
-    init_lexer(&lexer, source);
+
+    init_lexer(&lexer, source, &I, &S);
     init_token_list(&list);
     
     tokenize(&lexer, &list);
@@ -75,17 +103,27 @@ void test_tokenize_identifier_and_number_mixed(void) {
     TEST_ASSERT_EQUAL(TOK_INTEGER, list.tokens[1].type);
     TEST_ASSERT_EQUAL(TOK_IDENTIFIER, list.tokens[2].type);
     
+    interner_destroy(&I);
     free_token_list(&list);
+    ast_arena_free(arena);
 }
 
 // ===== TESTS DE MANEJO DE ESPACIOS =====
 
 void test_tokenize_with_spaces(void) {
+    AstArena *arena = ast_arena_new();
+
+    Interner I;
+    interner_init(&I, arena, 256);
+
+    Interned S;
+    interner_bootstrap_quimera(&I, &S);
+
     Lexer lexer;
     TokenList list;
     const char *source = "  variable   123  ";
-    
-    init_lexer(&lexer, source);
+
+    init_lexer(&lexer, source, &I, &S);
     init_token_list(&list);
     
     tokenize(&lexer, &list);
@@ -94,15 +132,25 @@ void test_tokenize_with_spaces(void) {
     TEST_ASSERT_EQUAL(TOK_IDENTIFIER, list.tokens[0].type);
     TEST_ASSERT_EQUAL(TOK_INTEGER, list.tokens[1].type);
     
+    interner_destroy(&I);
     free_token_list(&list);
+    ast_arena_free(arena);
 }
 
 void test_tokenize_with_tabs_and_newlines(void) {
+    AstArena *arena = ast_arena_new();
+
+    Interner I;
+    interner_init(&I, arena, 256);
+
+    Interned S;
+    interner_bootstrap_quimera(&I, &S);
+
     Lexer lexer;
     TokenList list;
     const char *source = "var1\t\nvar2";
-    
-    init_lexer(&lexer, source);
+
+    init_lexer(&lexer, source, &I, &S);
     init_token_list(&list);
     
     tokenize(&lexer, &list);
@@ -113,47 +161,77 @@ void test_tokenize_with_tabs_and_newlines(void) {
     TEST_ASSERT_EQUAL(TOK_IDENTIFIER, list.tokens[1].type);
     TEST_ASSERT_EQUAL_STRING_LEN("var2", list.tokens[1].lexeme, 4);
     
+    interner_destroy(&I);
     free_token_list(&list);
+    ast_arena_free(arena);
 }
 
 // ===== TESTS DE CASOS EDGE =====
 
 void test_tokenize_empty_string(void) {
+    AstArena *arena = ast_arena_new();
+
+    Interner I;
+    interner_init(&I, arena, 256);
+
+    Interned S;
+    interner_bootstrap_quimera(&I, &S);
+
     Lexer lexer;
     TokenList list;
     const char *source = "";
-    
-    init_lexer(&lexer, source);
+
+    init_lexer(&lexer, source, &I, &S);
     init_token_list(&list);
     
     tokenize(&lexer, &list);
     
     TEST_ASSERT_EQUAL(0, list.count);
     
+    interner_destroy(&I);
     free_token_list(&list);
+    ast_arena_free(arena);
 }
 
 void test_tokenize_only_spaces(void) {
+    AstArena *arena = ast_arena_new();
+
+    Interner I;
+    interner_init(&I, arena, 256);
+
+    Interned S;
+    interner_bootstrap_quimera(&I, &S);
+
     Lexer lexer;
     TokenList list;
     const char *source = "   \t\n  ";
-    
-    init_lexer(&lexer, source);
+
+    init_lexer(&lexer, source, &I, &S);
     init_token_list(&list);
     
     tokenize(&lexer, &list);
     
     TEST_ASSERT_EQUAL(0, list.count);
     
+    interner_destroy(&I);
     free_token_list(&list);
+    ast_arena_free(arena);
 }
 
 void test_tokenize_single_character_identifier(void) {
+    AstArena *arena = ast_arena_new();
+
+    Interner I;
+    interner_init(&I, arena, 256);
+
+    Interned S;
+    interner_bootstrap_quimera(&I, &S);
+
     Lexer lexer;
     TokenList list;
     const char *source = "a";
-    
-    init_lexer(&lexer, source);
+
+    init_lexer(&lexer, source, &I, &S);
     init_token_list(&list);
     
     tokenize(&lexer, &list);
@@ -162,17 +240,27 @@ void test_tokenize_single_character_identifier(void) {
     TEST_ASSERT_EQUAL(TOK_IDENTIFIER, list.tokens[0].type);
     TEST_ASSERT_EQUAL_STRING_LEN("a", list.tokens[0].lexeme, 1);
     
+    interner_destroy(&I);
     free_token_list(&list);
+    ast_arena_free(arena);
 }
 
 // ===== TESTS DE POSICIÓN Y LÍNEAS =====
 
 void test_lexer_position_tracking(void) {
+    AstArena *arena = ast_arena_new();
+
+    Interner I;
+    interner_init(&I, arena, 256);
+
+    Interned S;
+    interner_bootstrap_quimera(&I, &S);
+
     Lexer lexer;
     TokenList list;
     const char *source = "var1\nvar2";
-    
-    init_lexer(&lexer, source);
+
+    init_lexer(&lexer, source, &I, &S);
     init_token_list(&list);
     
     tokenize(&lexer, &list);
@@ -187,13 +275,23 @@ void test_lexer_position_tracking(void) {
     TEST_ASSERT_EQUAL(2, list.tokens[1].line);
     TEST_ASSERT_EQUAL(1, list.tokens[1].column);
     
+    interner_destroy(&I);
     free_token_list(&list);
+    ast_arena_free(arena);
 }
 
 void test_lexer_position_tracking_all_token_types(void) {
+    AstArena *arena = ast_arena_new();
+
+    Interner I;
+    interner_init(&I, arena, 256);
+
+    Interned S;
+    interner_bootstrap_quimera(&I, &S);
+
     Lexer lexer;
     TokenList list;
-    // Incluye: identificador, palabra clave, entero, flotante, string, char, delimitadores, operadores aritméticos, lógicos y de asignación
+
     const char *source =
         "if\n"                // TOK_KEYWORD (línea 1, col 1)
         "var\n"               // TOK_IDENTIFIER (línea 2, col 1)
@@ -214,7 +312,7 @@ void test_lexer_position_tracking_all_token_types(void) {
         "=\n"                 // TOK_ASSIGNMENT_OP (línea 17, col 1)
         ";\n";                // TOK_DELIMITER (línea 18, col 1)
 
-    init_lexer(&lexer, source);
+    init_lexer(&lexer, source, &I, &S);
     init_token_list(&list);
 
     tokenize(&lexer, &list);
@@ -241,17 +339,27 @@ void test_lexer_position_tracking_all_token_types(void) {
     TEST_ASSERT_EQUAL(TOK_ASSIGNMENT_OP,  list.tokens[16].type); TEST_ASSERT_EQUAL(17, list.tokens[16].line); TEST_ASSERT_EQUAL(1, list.tokens[16].column);
     TEST_ASSERT_EQUAL(TOK_DELIMITER,      list.tokens[17].type); TEST_ASSERT_EQUAL(18, list.tokens[17].line); TEST_ASSERT_EQUAL(1, list.tokens[17].column);
 
+    interner_destroy(&I);
     free_token_list(&list);
+    ast_arena_free(arena);
 }
 
 // ===== TESTS MIXTOS CON LITERALES =====
 
 void test_tokenize_mixed_with_literals(void) {
+    AstArena *arena = ast_arena_new();
+
+    Interner I;
+    interner_init(&I, arena, 256);
+
+    Interned S;
+    interner_bootstrap_quimera(&I, &S);
+
     Lexer lexer;
     TokenList list;
     const char *source = "variable \"string\" 'c' 123";
-    
-    init_lexer(&lexer, source);
+
+    init_lexer(&lexer, source, &I, &S);
     init_token_list(&list);
     
     tokenize(&lexer, &list);
@@ -262,24 +370,30 @@ void test_tokenize_mixed_with_literals(void) {
     TEST_ASSERT_EQUAL(TOK_CHAR, list.tokens[2].type);
     TEST_ASSERT_EQUAL(TOK_INTEGER, list.tokens[3].type);
     
+    interner_destroy(&I);
     free_token_list(&list);
+    ast_arena_free(arena);
 }
 
 // ===== TESTS MIXTOS CON DELIMITADORES =====
 
 void test_mixed_identifiers_numbers_and_delimiters(void) {
+    AstArena *arena = ast_arena_new();
+
+    Interner I;
+    interner_init(&I, arena, 256);
+
+    Interned S;
+    interner_bootstrap_quimera(&I, &S);
+
     Lexer lexer;
     TokenList list;
     const char *source = "Func(x:Integer, y:Float){Print(x);Print(y);}";
 
-    init_lexer(&lexer, source);
+    init_lexer(&lexer, source, &I, &S);
     init_token_list(&list);
     tokenize(&lexer, &list);
 
-    // === Verificación general ===
-    // Esperamos delimitadores bien identificados en su orden.
-    // Delimitadores esperados en la fuente:
-    // (  :  ,  :  )  {  (  )  ;  (  )  ;  }
     const char *expected_delims[] = { "(", ":", ",", ":", ")", "{", "(", ")", ";", "(", ")", ";", "}" };
     size_t expected_delim_count = sizeof(expected_delims) / sizeof(expected_delims[0]);
 
@@ -293,9 +407,6 @@ void test_mixed_identifiers_numbers_and_delimiters(void) {
     }
     TEST_ASSERT_EQUAL(expected_delim_count, found_delims);
 
-    // === Verificación de identificadores y palabras clave ===
-    // "Func", "x", "y" deben ser identificadores
-    // "Integer", "Float", "Print" son palabras reservadas (TOK_KEYWORD)
     int found_func = 0, found_x = 0, found_y = 0;
     int found_integer_kw = 0, found_float_kw = 0, found_print_kw = 0;
 
@@ -317,24 +428,31 @@ void test_mixed_identifiers_numbers_and_delimiters(void) {
     TEST_ASSERT_TRUE(found_y >= 1);
     TEST_ASSERT_TRUE(found_integer_kw >= 1);
     TEST_ASSERT_TRUE(found_float_kw >= 1);
-    TEST_ASSERT_TRUE(found_print_kw >= 2); // Hay dos llamadas a Print()
+    TEST_ASSERT_TRUE(found_print_kw >= 2); 
 
+    interner_destroy(&I);
     free_token_list(&list);
+    ast_arena_free(arena);
 }
 
 void test_delimiters_not_confused_with_operators(void) {
+    AstArena *arena = ast_arena_new();
+
+    Interner I;
+    interner_init(&I, arena, 256);
+
+    Interned S;
+    interner_bootstrap_quimera(&I, &S);
+
     Lexer lexer;
     TokenList list;
-    // aquí mezclamos '/', operadores y delimitadores para asegurar clasificación
+
     const char *source = "a/(b+c); d>=e; f==g, h[i]";
 
-    init_lexer(&lexer, source);
+    init_lexer(&lexer, source, &I, &S);
     init_token_list(&list);
     tokenize(&lexer, &list);
 
-    // Solo verificamos algunos puntos:
-    // '(' y ')' y ';' y ',' y '[' y ']' deben ser TOK_DELIMITER,
-    // '/' debe ser TOK_ARITHMETIC_OP, '>=' y '==' deben ser TOK_LOGIC_OP.
     int found_paren_open = 0, found_paren_close = 0, found_semis = 0, found_comma = 0, found_brack_open = 0, found_brack_close = 0;
     int found_div = 0, found_ge = 0, found_eqeq = 0;
 
@@ -364,5 +482,7 @@ void test_delimiters_not_confused_with_operators(void) {
     TEST_ASSERT_TRUE(found_ge   >= 1);
     TEST_ASSERT_TRUE(found_eqeq >= 1);
 
+    interner_destroy(&I);
     free_token_list(&list);
+    ast_arena_free(arena);
 }

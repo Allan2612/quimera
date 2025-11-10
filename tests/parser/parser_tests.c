@@ -8,15 +8,21 @@
 
 // Helper para crear parser desde código fuente
 static Parser create_parser_from_source(const char *source, AstArena **arena_out) {
+    AstArena *arena = ast_arena_new();
+    *arena_out = arena;
+
+    Interner I;
+    interner_init(&I, arena, 256);
+
+    Interned S;
+    interner_bootstrap_quimera(&I, &S);
+
     Lexer lexer;
     TokenList token_list;
     
-    init_lexer(&lexer, source);
+    init_lexer(&lexer, source, &I, &S);
     init_token_list(&token_list);
     tokenize(&lexer, &token_list);
-    
-    AstArena *arena = ast_arena_new();
-    *arena_out = arena;
     
     Parser parser = {
         .toks = token_list.tokens,
@@ -26,6 +32,7 @@ static Parser create_parser_from_source(const char *source, AstArena **arena_out
         .error_count = 0
     };
     
+    interner_destroy(&I);
     return parser;
 }
 

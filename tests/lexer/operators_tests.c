@@ -1,5 +1,7 @@
 #include "unity.h"
 #include "lexer.h"
+#include "ast.h"
+#include "interner.h"
 #include "utils.h"
 #include "diag_errors.h"
 #include <stdio.h>
@@ -8,11 +10,19 @@
 // ===== TESTS DE OPERADORES ARITMÉTICOS =====
 
 void test_tokenize_arithmetic_operators(void) {
+    AstArena *arena = ast_arena_new();
+
+    Interner I;
+    interner_init(&I, arena, 256);
+
+    Interned S;
+    interner_bootstrap_quimera(&I, &S);
+
     Lexer lexer;
     TokenList list;
     const char *source = "+ - / % * **";
-    
-    init_lexer(&lexer, source);
+
+    init_lexer(&lexer, source, &I, &S);
     init_token_list(&list);
     
     tokenize(&lexer, &list);
@@ -38,15 +48,25 @@ void test_tokenize_arithmetic_operators(void) {
     TEST_ASSERT_EQUAL(TOK_ARITHMETIC_OP, list.tokens[5].type);
     TEST_ASSERT_EQUAL_STRING_LEN("**", list.tokens[5].lexeme, 2);
     
+    interner_destroy(&I);
     free_token_list(&list);
+    ast_arena_free(arena);
 }
 
 void test_tokenize_power_operator(void) {
+    AstArena *arena = ast_arena_new();
+
+    Interner I;
+    interner_init(&I, arena, 256);
+
+    Interned S;
+    interner_bootstrap_quimera(&I, &S);
+
     Lexer lexer;
     TokenList list;
     const char *source = "**";
-    
-    init_lexer(&lexer, source);
+
+    init_lexer(&lexer, source, &I, &S);
     init_token_list(&list);
     
     tokenize(&lexer, &list);
@@ -56,15 +76,25 @@ void test_tokenize_power_operator(void) {
     TEST_ASSERT_EQUAL_STRING_LEN("**", list.tokens[0].lexeme, 2);
     TEST_ASSERT_EQUAL(2, list.tokens[0].length);
     
+    interner_destroy(&I);
     free_token_list(&list);
+    ast_arena_free(arena);
 }
 
 void test_tokenize_power_vs_multiply(void) {
+    AstArena *arena = ast_arena_new();
+
+    Interner I;
+    interner_init(&I, arena, 256);
+
+    Interned S;
+    interner_bootstrap_quimera(&I, &S);
+
     Lexer lexer;
     TokenList list;
     const char *source = "* **";
-    
-    init_lexer(&lexer, source);
+
+    init_lexer(&lexer, source, &I, &S);
     init_token_list(&list);
     
     tokenize(&lexer, &list);
@@ -81,17 +111,27 @@ void test_tokenize_power_vs_multiply(void) {
     TEST_ASSERT_EQUAL_STRING_LEN("**", list.tokens[1].lexeme, 2);
     TEST_ASSERT_EQUAL(2, list.tokens[1].length);
     
+    interner_destroy(&I);
     free_token_list(&list);
+    ast_arena_free(arena);
 }
 
 // ===== TESTS DE OPERADORES LÓGICOS/COMPARACIÓN =====
 
 void test_tokenize_comparison_operators(void) {
+    AstArena *arena = ast_arena_new();
+
+    Interner I;
+    interner_init(&I, arena, 256);
+
+    Interned S;
+    interner_bootstrap_quimera(&I, &S);
+
     Lexer lexer;
     TokenList list;
     const char *source = "== != > < >= <=";
-    
-    init_lexer(&lexer, source);
+
+    init_lexer(&lexer, source, &I, &S);
     init_token_list(&list);
     
     tokenize(&lexer, &list);
@@ -116,15 +156,25 @@ void test_tokenize_comparison_operators(void) {
     TEST_ASSERT_EQUAL(TOK_LOGIC_OP, list.tokens[5].type);
     TEST_ASSERT_EQUAL_STRING_LEN("<=", list.tokens[5].lexeme, 2);
     
+    interner_destroy(&I);
     free_token_list(&list);
+    ast_arena_free(arena);
 }
 
 void test_tokenize_logical_operators(void) {
+    AstArena *arena = ast_arena_new();
+
+    Interner I;
+    interner_init(&I, arena, 256);
+
+    Interned S;
+    interner_bootstrap_quimera(&I, &S);
+
     Lexer lexer;
     TokenList list;
     const char *source = "&& || !";
-    
-    init_lexer(&lexer, source);
+
+    init_lexer(&lexer, source, &I, &S);
     init_token_list(&list);
     
     tokenize(&lexer, &list);
@@ -140,15 +190,25 @@ void test_tokenize_logical_operators(void) {
     TEST_ASSERT_EQUAL(TOK_LOGIC_OP, list.tokens[2].type);
     TEST_ASSERT_EQUAL_STRING_LEN("!", list.tokens[2].lexeme, 1);
     
+    interner_destroy(&I);
     free_token_list(&list);
+    ast_arena_free(arena);
 }
 
 void test_tokenize_greater_vs_greater_equal(void) {
+    AstArena *arena = ast_arena_new();
+
+    Interner I;
+    interner_init(&I, arena, 256);
+
+    Interned S;
+    interner_bootstrap_quimera(&I, &S);
+
     Lexer lexer;
     TokenList list;
     const char *source = "> >=";
-    
-    init_lexer(&lexer, source);
+
+    init_lexer(&lexer, source, &I, &S);
     init_token_list(&list);
     
     tokenize(&lexer, &list);
@@ -165,17 +225,27 @@ void test_tokenize_greater_vs_greater_equal(void) {
     TEST_ASSERT_EQUAL_STRING_LEN(">=", list.tokens[1].lexeme, 2);
     TEST_ASSERT_EQUAL(2, list.tokens[1].length);
     
+    interner_destroy(&I);
     free_token_list(&list);
+    ast_arena_free(arena);
 }
 
 // ===== TESTS DE OPERADORES DE ASIGNACIÓN =====
 
 void test_tokenize_assignment_operator(void) {
+    AstArena *arena = ast_arena_new();
+
+    Interner I;
+    interner_init(&I, arena, 256);
+
+    Interned S;
+    interner_bootstrap_quimera(&I, &S);
+
     Lexer lexer;
     TokenList list;
     const char *source = "= += -=";
-    
-    init_lexer(&lexer, source);
+
+    init_lexer(&lexer, source, &I, &S);
     init_token_list(&list);
     
     tokenize(&lexer, &list);
@@ -191,15 +261,25 @@ void test_tokenize_assignment_operator(void) {
     TEST_ASSERT_EQUAL_STRING_LEN("-=", list.tokens[2].lexeme, 2);
     TEST_ASSERT_EQUAL(2, list.tokens[2].length);
     
+    interner_destroy(&I);
     free_token_list(&list);
+    ast_arena_free(arena);
 }
 
 void test_tokenize_assignment_vs_equality(void) {
+    AstArena *arena = ast_arena_new();
+
+    Interner I;
+    interner_init(&I, arena, 256);
+
+    Interned S;
+    interner_bootstrap_quimera(&I, &S);
+
     Lexer lexer;
     TokenList list;
     const char *source = "= ==";
-    
-    init_lexer(&lexer, source);
+
+    init_lexer(&lexer, source, &I, &S);
     init_token_list(&list);
     
     tokenize(&lexer, &list);
@@ -216,15 +296,25 @@ void test_tokenize_assignment_vs_equality(void) {
     TEST_ASSERT_EQUAL_STRING_LEN("==", list.tokens[1].lexeme, 2);
     TEST_ASSERT_EQUAL(2, list.tokens[1].length);
     
+    interner_destroy(&I);
     free_token_list(&list);
+    ast_arena_free(arena);
 }
 
 void test_tokenize_compound_assignment_operators(void) {
+    AstArena *arena = ast_arena_new();
+
+    Interner I;
+    interner_init(&I, arena, 256);
+
+    Interned S;
+    interner_bootstrap_quimera(&I, &S);
+
     Lexer lexer;
     TokenList list;
     const char *source = "+= -=";
 
-    init_lexer(&lexer, source);
+    init_lexer(&lexer, source, &I, &S);
     init_token_list(&list);
     tokenize(&lexer, &list);
 
@@ -236,17 +326,27 @@ void test_tokenize_compound_assignment_operators(void) {
     TEST_ASSERT_EQUAL(TOK_ASSIGNMENT_OP, list.tokens[1].type);
     TEST_ASSERT_EQUAL_STRING_LEN("-=", list.tokens[1].lexeme, 2);
 
+    interner_destroy(&I);
     free_token_list(&list);
+    ast_arena_free(arena);
 }
 
 // ===== TESTS MIXTOS Y CASOS COMPLEJOS =====
 
 void test_tokenize_operators_without_spaces(void) {
+    AstArena *arena = ast_arena_new();
+
+    Interner I;
+    interner_init(&I, arena, 256);
+
+    Interned S;
+    interner_bootstrap_quimera(&I, &S);
+
     Lexer lexer;
     TokenList list;
     const char *source = "a+b*c>=d";
-    
-    init_lexer(&lexer, source);
+
+    init_lexer(&lexer, source, &I, &S);
     init_token_list(&list);
     
     tokenize(&lexer, &list);
@@ -261,15 +361,25 @@ void test_tokenize_operators_without_spaces(void) {
     TEST_ASSERT_EQUAL(TOK_LOGIC_OP, list.tokens[5].type);        // >=
     TEST_ASSERT_EQUAL(TOK_IDENTIFIER, list.tokens[6].type);      // d
     
+    interner_destroy(&I);
     free_token_list(&list);
+    ast_arena_free(arena);
 }
 
 void test_tokenize_expression_with_operators(void) {
+    AstArena *arena = ast_arena_new();
+
+    Interner I;
+    interner_init(&I, arena, 256);
+
+    Interned S;
+    interner_bootstrap_quimera(&I, &S);
+
     Lexer lexer;
     TokenList list;
     const char *source = "x = y + z * 2";
-    
-    init_lexer(&lexer, source);
+
+    init_lexer(&lexer, source, &I, &S);
     init_token_list(&list);
     
     tokenize(&lexer, &list);
@@ -284,17 +394,27 @@ void test_tokenize_expression_with_operators(void) {
     TEST_ASSERT_EQUAL(TOK_ARITHMETIC_OP, list.tokens[5].type);   // *
     TEST_ASSERT_EQUAL(TOK_INTEGER, list.tokens[6].type);         // 2
     
+    interner_destroy(&I);
     free_token_list(&list);
+    ast_arena_free(arena);
 }
 
 // ===== TESTS DE POSICIONAMIENTO =====
 
 void test_operators_position_tracking(void) {
+    AstArena *arena = ast_arena_new();
+
+    Interner I;
+    interner_init(&I, arena, 256);
+
+    Interned S;
+    interner_bootstrap_quimera(&I, &S);
+
     Lexer lexer;
     TokenList list;
     const char *source = "+ ==\n<=";
-    
-    init_lexer(&lexer, source);
+
+    init_lexer(&lexer, source, &I, &S);
     init_token_list(&list);
     
     tokenize(&lexer, &list);
@@ -313,6 +433,8 @@ void test_operators_position_tracking(void) {
     TEST_ASSERT_EQUAL(2, list.tokens[2].line);
     TEST_ASSERT_EQUAL(1, list.tokens[2].column);
     
+    interner_destroy(&I);
     free_token_list(&list);
+    ast_arena_free(arena);
 }
 

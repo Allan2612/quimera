@@ -4,6 +4,7 @@
 #include "utils.h"
 #include <stddef.h>
 #include <stdbool.h>
+#include "interner.h"
 
 typedef struct {
     const char *source;
@@ -11,10 +12,13 @@ typedef struct {
     size_t position;
     size_t line;
     size_t column;
+
+    Interner *I;
+    Interned  S; 
 } Lexer;
 
 // Inicializa el lexer con la fuente dada
-void init_lexer(Lexer *lexer, const char *source);
+void init_lexer(Lexer *lexer, const char *source, Interner *I, const Interned *S);
 
 // Tokeniza la fuente y llena la lista de tokens
 void tokenize(Lexer *lexer, TokenList *list);
