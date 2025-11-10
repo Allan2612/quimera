@@ -108,3 +108,12 @@ void ast_list_push(AstArena *a, AstList *list, AstNode *node) {
     }
     list->data[list->count++] = node;
 }
+
+char *ast_arena_strndup(AstArena *a, const char *s, size_t n) {
+    if (!s) return NULL;
+    char *out = (char*)arena_alloc(a, n + 1, _Alignof(char));  // reserva en la arena
+    if (!out) return NULL;
+    memcpy(out, s, n);
+    out[n] = '\0';
+    return out;
+}

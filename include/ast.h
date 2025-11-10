@@ -135,4 +135,6 @@ void      ast_arena_free(AstArena *a);
 AstNode  *ast_new(AstArena *a, AstKind kind, SrcSpan span);
 void      ast_list_push(AstArena *a, AstList *list, AstNode *node);
 
+char *ast_arena_strndup(AstArena *a, const char *s, size_t n);
+
 #endif /* AST_H */
