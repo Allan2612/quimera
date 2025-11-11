@@ -29,7 +29,6 @@ void test_tokenize_keywords_loop(void);
 void test_tokenize_keywords_functions(void);
 void test_tokenize_keywords_io(void);
 void test_tokenize_keywords_boolean_literals(void);
-void test_tokenize_keywords_logic(void);
 
 // Literales
 void test_tokenize_simple_string(void);
@@ -86,7 +85,6 @@ void register_lexer_tests(void) {
     RUN_TEST(test_tokenize_keywords_functions);
     RUN_TEST(test_tokenize_keywords_io);
     RUN_TEST(test_tokenize_keywords_boolean_literals);
-    RUN_TEST(test_tokenize_keywords_logic);
 
     // Números
     RUN_TEST(test_tokenize_integer);

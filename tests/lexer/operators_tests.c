@@ -172,14 +172,14 @@ void test_tokenize_logical_operators(void) {
 
     Lexer lexer;
     TokenList list;
-    const char *source = "&& || !";
+    const char *source = "&& || ! And Or Not";
 
     init_lexer(&lexer, source, &I, &S);
     init_token_list(&list);
     
     tokenize(&lexer, &list);
     
-    TEST_ASSERT_EQUAL(3, list.count);
+    TEST_ASSERT_EQUAL(6, list.count);
     
     TEST_ASSERT_EQUAL(TOK_LOGIC_OP, list.tokens[0].type);
     TEST_ASSERT_EQUAL_STRING_LEN("&&", list.tokens[0].lexeme, 2);
@@ -189,7 +189,16 @@ void test_tokenize_logical_operators(void) {
     
     TEST_ASSERT_EQUAL(TOK_LOGIC_OP, list.tokens[2].type);
     TEST_ASSERT_EQUAL_STRING_LEN("!", list.tokens[2].lexeme, 1);
-    
+
+    TEST_ASSERT_EQUAL(TOK_LOGIC_OP, list.tokens[2].type);
+    TEST_ASSERT_EQUAL_STRING_LEN("And", list.tokens[3].lexeme, 3);
+
+    TEST_ASSERT_EQUAL(TOK_LOGIC_OP, list.tokens[4].type);
+    TEST_ASSERT_EQUAL_STRING_LEN("Or", list.tokens[4].lexeme, 2);
+
+    TEST_ASSERT_EQUAL(TOK_LOGIC_OP, list.tokens[5].type);
+    TEST_ASSERT_EQUAL_STRING_LEN("Not", list.tokens[5].lexeme, 3);
+
     interner_destroy(&I);
     free_token_list(&list);
     ast_arena_free(arena);

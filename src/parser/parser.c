@@ -14,41 +14,50 @@ static inline const Token *advance(Parser *p) { return is_eof(p) ? NULL : &p->to
 
 static inline int tok_is(const Token *t, TokenType ty) { return t && t->type == ty; }
 
-/* Internamos el lexema del token y lo comparamos por puntero si es posible */
+/* Helper: Conversión de token a string internado */
 static const char *intern_token_lexeme(Parser *p, const Token *t) {
     if (!t || !t->lexeme) return NULL;
-    return interner_intern_slice(p->interner, t->lexeme, t->length);
+    return interner_intern_cstr(p->interner, t->lexeme);
 }
 
-static int lexeme_is(const Token *t, const char *kw) {
-    if (!t || !t->lexeme) return 0;
-    size_t n = strlen(kw);
-    return t->length == n && strncmp(t->lexeme, kw, n) == 0;
-}
-
-/* Versión optimizada que usa punteros internados cuando es posible */
+/* Helper: Comparación de lexema con string internado - VERSIÓN ÚNICA */
 static int lexeme_is_intern(Parser *p, const Token *t, const char *interned_str) {
-    if (!t || !t->lexeme) return 0;
-    const char *t_interned = intern_token_lexeme(p, t);
-    return t_interned == interned_str; // comparación de punteros
+    if (!t || !t->lexeme || !interned_str) return 0;
+    const char *interned_lexeme = intern_token_lexeme(p, t);
+    return interned_lexeme == interned_str;
 }
 
-static int is_kw(const Token *t, const char *kw) {
-    return tok_is(t, TOK_KEYWORD) && lexeme_is(t, kw);
+/* Helper: Funciones para obtener strings internados comunes */
+static const char *get_intern_delim(Parser *p, const char *delim) {
+    return interner_intern_cstr(p->interner, delim);
 }
 
-/* Versión optimizada para palabras clave internadas */
+static const char *get_intern_op(Parser *p, const char *op) {
+    return interner_intern_cstr(p->interner, op);
+}
+
+static const char *get_intern_kw(Parser *p, const char *kw) {
+    return interner_intern_cstr(p->interner, kw);
+}
+
+/* Helper para compatibilidad temporal */
+static int lexeme_is(const Token *t, const char *s) {
+    if (!t || !t->lexeme || !s) return 0;
+    return strncmp(t->lexeme, s, t->length) == 0 && strlen(s) == t->length;
+}
+
+/* Token check functions - SOLO INTERNER */
 static int is_kw_intern(Parser *p, const Token *t, const char *interned_kw) {
     return tok_is(t, TOK_KEYWORD) && lexeme_is_intern(p, t, interned_kw);
 }
 
-static int is_delim(const Token *t, const char *d) {
-    return tok_is(t, TOK_DELIMITER) && lexeme_is(t, d);
+/* Funciones temporales de compatibilidad - TODO: migrar a _intern */
+static int is_kw(const Token *t, const char *kw) {
+    return tok_is(t, TOK_KEYWORD) && lexeme_is(t, kw);
 }
 
-/* Versión optimizada para delimitadores internados */
-static int is_delim_intern(Parser *p, const Token *t, const char *interned_delim) {
-    return tok_is(t, TOK_DELIMITER) && lexeme_is_intern(p, t, interned_delim);
+static int is_delim(const Token *t, const char *d) {
+    return tok_is(t, TOK_DELIMITER) && lexeme_is(t, d);
 }
 
 static int is_type(const Token *t) {
@@ -59,7 +68,22 @@ static int is_type(const Token *t) {
     return 0;
 }
 
-/* Versión optimizada que usa símbolos internados */
+static int is_delim_intern(Parser *p, const Token *t, const char *interned_delim) {
+    return tok_is(t, TOK_DELIMITER) && lexeme_is_intern(p, t, interned_delim);
+}
+
+static int is_assignment_intern(Parser *p, const Token *t, const char *interned_op) {
+    return tok_is(t, TOK_ASSIGNMENT_OP) && lexeme_is_intern(p, t, interned_op);
+}
+
+static int is_arithmetic_intern(Parser *p, const Token *t, const char *interned_op) {
+    return tok_is(t, TOK_ARITHMETIC_OP) && lexeme_is_intern(p, t, interned_op);
+}
+
+static int is_logic_intern(Parser *p, const Token *t, const char *interned_op) {
+    return tok_is(t, TOK_LOGIC_OP) && lexeme_is_intern(p, t, interned_op);
+}
+
 static int is_type_intern(Parser *p, const Token *t) {
     if (!tok_is(t, TOK_KEYWORD)) return 0;
     const char *t_interned = intern_token_lexeme(p, t);
@@ -268,6 +292,7 @@ static OpCode opcode_from_tok(const Token *t) {
     if (tok_is(t, TOK_LOGIC_OP)) {
         if (lexeme_is(t,"And")) return OP_AND;
         if (lexeme_is(t,"Or"))  return OP_OR;
+        if (lexeme_is(t,"Not"))  return OP_NOT;
         if (lexeme_is(t,"=="))  return OP_EQ;
         if (lexeme_is(t,"!="))  return OP_NEQ;
         if (lexeme_is(t,"<"))   return OP_LT;
@@ -276,9 +301,22 @@ static OpCode opcode_from_tok(const Token *t) {
         if (lexeme_is(t,">="))  return OP_GTE;
     }
     
-    /* unarios por keyword u op */
-    if (is_kw(t,"Not")) return OP_NOT;
-    if (tok_is(t, TOK_ARITHMETIC_OP) && lexeme_is(t,"-")) return OP_NEG;
+    return OP_NONE;
+}
+
+/* Función específica para operadores unarios */
+static OpCode opcode_from_tok_unary(const Token *t) {
+    if (!t) return OP_NONE;
+    
+    if (tok_is(t, TOK_LOGIC_OP)){
+        if (lexeme_is(t,"Not"))  return OP_NOT;
+        if (lexeme_is(t,"!"))    return OP_NOT;
+    }
+    
+    if (tok_is(t, TOK_ARITHMETIC_OP)) {
+        if (lexeme_is(t,"-")) return OP_NEG;
+        if (lexeme_is(t,"+")) return OP_ADD; // + unario (normalmente no hace nada)
+    }
     
     return OP_NONE;
 }
@@ -358,9 +396,8 @@ static AstNode *parse_prefix(Parser *p) {
     }
 
     /* unarios: Not, -, + */
-    if (is_kw(t,"Not") || (tok_is(t, TOK_ARITHMETIC_OP) && (lexeme_is(t,"-") || lexeme_is(t,"+")))) {
-        OpCode op = opcode_from_tok(t);
-        if (op == OP_NONE && lexeme_is(t, "+")) op = OP_ADD; // + unario
+    if ((tok_is(t, TOK_LOGIC_OP) && (lexeme_is(t,"Not") || lexeme_is(t,"!"))) || (tok_is(t, TOK_ARITHMETIC_OP) && (lexeme_is(t,"-") || lexeme_is(t,"+")))) {
+        OpCode op = opcode_from_tok_unary(t);
         advance(p);
         AstNode *rhs = parse_precedence(p, PREC_UNARY);
         AstNode *u = make_node(p, AST_UNOP, t);
@@ -450,7 +487,7 @@ static AstNode *parse_postfix(Parser *p, AstNode *lhs) {
         }
 
         /* métodos de lista: .append(), .remove(), .size() */
-        if (is_delim(t, ".")) {
+        if (tok_is(t, TOK_ARITHMETIC_OP) && lexeme_is(t, ".")) {
             const Token *dot = advance(p); // '.'
             const Token *method_name = at(p);
             
@@ -587,6 +624,25 @@ static AstNode *parse_var_declaration(Parser *p) {
     }
     
     expect_delim(p, ";");
+    return var_decl;
+}
+
+/* Versión de declaración de variable sin esperar ';' (para FOR loops) */
+static AstNode *parse_var_declaration_no_semicolon(Parser *p) {
+    const Token *type_tok = expect_type(p);
+    const Token *name_tok = expect_identifier(p);
+    
+    AstNode *var_decl = make_node_span(p, AST_VAR_DECL, type_tok, name_tok);
+    var_decl->as.var_decl.type_name = intern_token_lexeme(p, type_tok); // String internada
+    var_decl->as.var_decl.name = intern_token_lexeme(p, name_tok);      // String internada
+    var_decl->as.var_decl.init = NULL;
+    
+    // Inicialización opcional
+    if (tok_is(at(p), TOK_ASSIGNMENT_OP) && lexeme_is(at(p), "=")) {
+        advance(p); // '='
+        var_decl->as.var_decl.init = parse_expression(p);
+    }
+    
     return var_decl;
 }
 
@@ -802,9 +858,8 @@ static AstNode *parse_for_stmt(Parser *p) {
     // Inicialización: declaración o asignación
     const Token *lookahead = peek(p, 1);
     if (is_type(at(p)) && tok_is(lookahead, TOK_IDENTIFIER)) {
-        // Es una declaración de variable
-        n->as.for_stmt.init = parse_var_declaration(p);
-        // No consumir el ; porque parse_var_declaration ya lo hace
+        // Es una declaración de variable (sin punto y coma)
+        n->as.for_stmt.init = parse_var_declaration_no_semicolon(p);
     } else {
         // Es una asignación
         n->as.for_stmt.init = parse_expression(p);

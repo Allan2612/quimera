@@ -89,12 +89,22 @@ static int is_keyword_ptr(const Interned *S, const char *p) {
         // Tipos (en tu diseño son keywords)
         p==S->T_Integer || p==S->T_Float || p==S->T_String ||
         p==S->T_Boolean || p==S->T_Char  || p==S->T_List   ||
-        // Palabras clave
+        // Palabras clave (sin And/Or que son operadores lógicos)
         p==S->K_If     || p==S->K_ElseIf || p==S->K_Else   ||
         p==S->K_For    || p==S->K_While  || p==S->K_Return ||
-        p==S->K_Print  || p==S->K_Read   || p==S->K_And    ||
-        p==S->K_Or     || p==S->K_Not    || p==S->K_True   ||
-        p==S->K_False  || p==S->K_Null   || p==S->K_End;
+        p==S->K_Print  || p==S->K_Read   || p==S->K_Not    ||
+        p==S->K_True   || p==S->K_False  || p==S->K_Null   || p==S->K_End;
+}
+
+// Función para verificar si un lexeme es operador lógico textual
+static int is_logic_operator_ptr(const Interned *S, const char *p) {
+    return p==S->K_And || p==S->K_Or || p==S->K_Not;
+}
+
+static int is_logic_operator_lexeme(const char *lexeme, size_t len) {
+    return (len == 3 && strncmp(lexeme, "And", len) == 0) ||
+           (len == 2 && strncmp(lexeme, "Or", len) == 0) ||
+           (len == 3 && strncmp(lexeme, "Not", len) == 0);
 }
 
 // Función para identificar lexemas de identificadores o palabras reservadas
@@ -117,7 +127,9 @@ static void identify_identifier(Lexer *lexer, Token *token) {
     token->lexeme = interned;
 
     // Clasificación por puntero (rápida)
-    if (is_keyword_ptr(&lexer->S, interned) || is_keyword_lexeme(interned, len)) {
+    if (is_logic_operator_ptr(&lexer->S, interned) || is_logic_operator_lexeme(interned, len)) {
+        token->type = TOK_LOGIC_OP;
+    } else if (is_keyword_ptr(&lexer->S, interned) || is_keyword_lexeme(interned, len)) {
         token->type = TOK_KEYWORD;
     } else {
         token->type = TOK_IDENTIFIER;

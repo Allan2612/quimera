@@ -1,29 +1,52 @@
-# Parser de Quimera - Documentación Técnica
+# Parser de Quimera - Documentación Técnica Actualizada
 
 ## Introducción
 
-El parser de Quimera es un analizador sintáctico descendente recursivo que implementa el algoritmo de Pratt para el análisis de expresiones. Este parser toma la secuencia de tokens generada por el lexer y construye un Árbol de Sintaxis Abstracta (AST) siguiendo la gramática BNF definida en `Sintaxis.md`.
+El parser de Quimera es un analizador sintáctico descendente recursivo que implementa el algoritmo de Pratt para el análisis de expresiones. **Está completamente integrado con el sistema de strings internadas (interner)** para optimización de memoria y rendimiento.
 
 ## Arquitectura
 
-### Componentes Principales
+### Integración Lexer-Parser
 
-1. **Parser Structure** (`Parser`): Estructura principal que mantiene el estado del parser
-2. **AST Generation**: Construcción del árbol de sintaxis abstracta usando `AstArena`
-3. **Error Handling**: Sistema integrado de manejo y reporte de errores
-4. **Precedence Climbing**: Implementación del algoritmo de Pratt para expresiones
-
-### Estructura del Parser
-
+#### Estructura del Parser (Actualizada)
 ```c
 typedef struct {
     const Token *toks;    // Array de tokens del lexer
     size_t count;         // Número total de tokens
     size_t i;             // Índice actual (posición en los tokens)
     AstArena *arena;      // Arena de memoria para nodos AST
+    Interner *interner;   // Sistema de strings internadas
+    Interned *syms;       // Símbolos precargados internados
     int error_count;      // Contador de errores encontrados
 } Parser;
 ```
+
+#### Sistema de Token Check Optimizado
+El parser utiliza funciones optimizadas que aprovechan las strings internadas:
+
+```c
+// Funciones principales (solo interner)
+static int is_kw_intern(Parser *p, const Token *t, const char *interned_kw);
+static int is_delim_intern(Parser *p, const Token *t, const char *interned_delim);
+static int is_assignment_intern(Parser *p, const Token *t, const char *interned_op);
+
+// Funciones auxiliares para compatibilidad (temporal)
+static int is_kw(const Token *t, const char *kw);
+static int is_delim(const Token *t, const char *d);
+```
+
+### Categorización Consistente de Tokens
+
+#### Operador de Asignación
+- **`=`, `+=`, `-=`** → `TOK_ASSIGNMENT_OP` (NO `TOK_DELIMITER`)
+- **Parser busca correctamente**: `tok_is(at(p), TOK_ASSIGNMENT_OP) && lexeme_is(at(p), "=")`
+
+#### Operador de Acceso (Punto)
+- **`.`** → `TOK_ARITHMETIC_OP` (para acceso a miembros/métodos)
+- **Parser busca**: `tok_is(t, TOK_ARITHMETIC_OP) && lexeme_is(t, ".")`
+
+#### Delimitadores
+- **`;`, `:`, `{`, `}`, `,`, `(`, `)`, `[`, `]`** → `TOK_DELIMITER`
 
 ## Funciones Principales
 
