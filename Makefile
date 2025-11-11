@@ -113,7 +113,7 @@ clean:
 
 # ===== Reglas de construcción =====
 # Ejecutable principal
-$(APP): $(LIB) $(OBJ_MAIN) | $(BIN_DIR)
+$(APP): $(OBJ_MAIN) $(LIB) | $(BIN_DIR)
 	$(CC) $(CFLAGS) $^ -o $@
 
 # Librería estática con todo el core (sin main ni apps)
