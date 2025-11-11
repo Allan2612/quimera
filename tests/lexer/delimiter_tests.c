@@ -1,18 +1,28 @@
 // tests/lexer/delimiters_tests.c
 #include "unity.h"
 #include "lexer.h"
+#include "ast.h"
+#include "interner.h"
 #include "utils.h"
 #include <string.h>
 
 // ====== TESTS BÁSICOS ======
 
 void test_tokenize_single_delimiters_in_order(void) {
+    AstArena *arena = ast_arena_new();
+
+    Interner I;
+    interner_init(&I, arena, 256);
+
+    Interned S;
+    interner_bootstrap_quimera(&I, &S);
+
     Lexer lexer;
     TokenList list;
-    // Mismo orden que tu tabla: ; : { } , ( ) [ ]
+
     const char *source = "; : { } , ( ) [ ]";
 
-    init_lexer(&lexer, source);
+    init_lexer(&lexer, source, &I, &S);
     init_token_list(&list);
     tokenize(&lexer, &list);
 
@@ -23,16 +33,25 @@ void test_tokenize_single_delimiters_in_order(void) {
         TEST_ASSERT_EQUAL_STRING_LEN(expect[i], list.tokens[i].lexeme, 1);
         TEST_ASSERT_EQUAL(1, list.tokens[i].length);
     }
-
+    interner_destroy(&I);
     free_token_list(&list);
+    ast_arena_free(arena);
 }
 
 void test_tokenize_single_delimiters_no_spaces(void) {
+    AstArena *arena = ast_arena_new();
+
+    Interner I;
+    interner_init(&I, arena, 256);
+
+    Interned S;
+    interner_bootstrap_quimera(&I, &S);
+
     Lexer lexer;
     TokenList list;
     const char *source = ";:{}(),[]";
 
-    init_lexer(&lexer, source);
+    init_lexer(&lexer, source, &I, &S);
     init_token_list(&list);
     tokenize(&lexer, &list);
 
@@ -44,12 +63,22 @@ void test_tokenize_single_delimiters_no_spaces(void) {
         TEST_ASSERT_EQUAL(1, list.tokens[i].length);
     }
 
+    interner_destroy(&I);
     free_token_list(&list);
+    ast_arena_free(arena);
 }
 
 // ====== TESTS DE POSICIÓN ======
 
 void test_delimiters_position_tracking_multiline(void) {
+    AstArena *arena = ast_arena_new();
+
+    Interner I;
+    interner_init(&I, arena, 256);
+
+    Interned S;
+    interner_bootstrap_quimera(&I, &S);
+
     Lexer lexer;
     TokenList list;
     // línea 1: "{"
@@ -57,7 +86,7 @@ void test_delimiters_position_tracking_multiline(void) {
     // línea 3: "}"
     const char *source = "{\n(a,b);\n}";
 
-    init_lexer(&lexer, source);
+    init_lexer(&lexer, source, &I, &S);
     init_token_list(&list);
     tokenize(&lexer, &list);
 
@@ -106,5 +135,7 @@ void test_delimiters_position_tracking_multiline(void) {
     TEST_ASSERT_EQUAL(3, list.tokens[7].line);
     TEST_ASSERT_EQUAL(1, list.tokens[7].column);
 
+    interner_destroy(&I);
     free_token_list(&list);
+    ast_arena_free(arena);
 }

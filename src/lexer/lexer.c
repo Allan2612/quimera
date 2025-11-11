@@ -2,6 +2,7 @@
 #include "symbol_table.h"
 #include "utils.h"
 #include "diag_errors.h"
+#include "interner.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -83,6 +84,29 @@ static int is_keyword_lexeme(const char *lexeme, size_t len) {
     return 0;
 }
 
+static int is_keyword_ptr(const Interned *S, const char *p) {
+    return
+        // Tipos (en tu diseño son keywords)
+        p==S->T_Integer || p==S->T_Float || p==S->T_String ||
+        p==S->T_Boolean || p==S->T_Char  || p==S->T_List   ||
+        // Palabras clave (sin And/Or que son operadores lógicos)
+        p==S->K_If     || p==S->K_ElseIf || p==S->K_Else   ||
+        p==S->K_For    || p==S->K_While  || p==S->K_Return ||
+        p==S->K_Print  || p==S->K_Read   || p==S->K_Not    ||
+        p==S->K_True   || p==S->K_False  || p==S->K_Null   || p==S->K_End;
+}
+
+// Función para verificar si un lexeme es operador lógico textual
+static int is_logic_operator_ptr(const Interned *S, const char *p) {
+    return p==S->K_And || p==S->K_Or || p==S->K_Not;
+}
+
+static int is_logic_operator_lexeme(const char *lexeme, size_t len) {
+    return (len == 3 && strncmp(lexeme, "And", len) == 0) ||
+           (len == 2 && strncmp(lexeme, "Or", len) == 0) ||
+           (len == 3 && strncmp(lexeme, "Not", len) == 0);
+}
+
 // Función para identificar lexemas de identificadores o palabras reservadas
 static void identify_identifier(Lexer *lexer, Token *token) { 
     size_t start_pos = lexer->position;
@@ -97,17 +121,22 @@ static void identify_identifier(Lexer *lexer, Token *token) {
     token->line   = lexer->line;
     token->column = lexer->column;
     token->length = len;
-    token->lexeme = lexer->source + start_pos;
 
-    if (is_keyword_lexeme(token->lexeme, token->length)) {
+    // INTERNAR el slice (NUL-terminado único en la arena del interner)
+    const char *interned = interner_intern_slice(lexer->I, lexer->source + start_pos, len);
+    token->lexeme = interned;
+
+    // Clasificación por puntero (rápida)
+    if (is_logic_operator_ptr(&lexer->S, interned) || is_logic_operator_lexeme(interned, len)) {
+        token->type = TOK_LOGIC_OP;
+    } else if (is_keyword_ptr(&lexer->S, interned) || is_keyword_lexeme(interned, len)) {
         token->type = TOK_KEYWORD;
     } else {
         token->type = TOK_IDENTIFIER;
     }
 
-    // Dejar lexer->position en el primer carácter no procesado
     lexer->position = i;
-    lexer->column += len;
+    lexer->column  += len;
 }
 
 static void identify_number(Lexer *lexer, Token *token) { 
@@ -127,7 +156,7 @@ static void identify_number(Lexer *lexer, Token *token) {
     token->line   = lexer->line;
     token->column = lexer->column;
     token->length = len;
-    token->lexeme = lexer->source + start_pos;
+    token->lexeme = interner_intern_slice(lexer->I, lexer->source + start_pos, len);
 
     if (has_decimal == 1) {
         token->type = TOK_FLOAT;
@@ -189,7 +218,7 @@ static void identify_literal(Lexer *lexer, Token *token) {
     token->line = lexer->line;
     token->column = lexer->column;
     token->length = len;
-    token->lexeme = lexer->source + start_pos; 
+    token->lexeme = interner_intern_slice(lexer->I, lexer->source + start_pos, len);; 
 
     size_t content_len = len - 2; // Longitud del contenido sin comillas
 
@@ -292,7 +321,7 @@ static void identify_operator(Lexer *lexer, Token *token) {
         len = 1; // Al menos avanzar 1 carácter
     }
 
-    token->lexeme = lexer->source + start_pos;
+    token->lexeme = interner_intern_slice(lexer->I, lexer->source + start_pos, len);
     token->line = lexer->line;
     token->column = lexer->column;
     token->length = len;
@@ -330,7 +359,7 @@ static void identify_delimiter(Lexer *lexer, Token *token) {
         len = 1; // Al menos avanzar 1 carácter
     }
 
-    token->lexeme = lexer->source + start_pos;
+    token->lexeme = interner_intern_slice(lexer->I, lexer->source + start_pos, len);
     token->line = lexer->line;
     token->column = lexer->column;
     token->length = len;
@@ -389,13 +418,17 @@ static void skip_block_comment(Lexer *lexer) {
 
 //------------Main Lexer Functions----------------
 
-void init_lexer(Lexer *lexer, const char *source) {
-    lexer->source = source;
-    lexer->length = strlen(source);
+void init_lexer(Lexer *lexer, const char *source, Interner *I, const Interned *S) {
+    lexer->source   = source;
+    lexer->length   = strlen(source);
     lexer->position = 0;
-    lexer->line = 1;
-    lexer->column = 1;
+    lexer->line     = 1;
+    lexer->column   = 1;
+
+    lexer->I = I;          // <<— NUEVO
+    lexer->S = *S;         // <<— NUEVO (o guarda el puntero si elegiste puntero en el .h)
 }
+
 
 void tokenize(Lexer *lexer, TokenList *list) {
     Token token; // Declarar una sola variable token reutilizable
