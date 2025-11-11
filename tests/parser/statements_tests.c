@@ -7,30 +7,49 @@
 #include <stdlib.h>
 
 // Helper para crear parser desde código fuente
-static Parser create_parser_from_source(const char *source, AstArena **arena_out) {
+static Parser create_parser_from_source(const char *source, AstArena **arena_out, Interner **interner_out, Interned **syms_out, TokenList *token_list_out) {
+// 1) Arena
     AstArena *arena = ast_arena_new();
     *arena_out = arena;
 
-    Interner I;
-    interner_init(&I, arena, 256);
+    // 2) Interner + símbolos internados
+    Interner *interner = (Interner*)malloc(sizeof(Interner));
+    interner_init(interner, arena, 256);
+    *interner_out = interner;
 
-    Interned S;
-    interner_bootstrap_quimera(&I, &S);
+    Interned *syms = (Interned*)malloc(sizeof(Interned));
+    interner_bootstrap_quimera(interner, syms);
+    *syms_out = syms;
 
+    // 3) Lexer + tokens (IMPORTANTÍSIMO: usar el TokenList del caller)
     Lexer lexer;
-    TokenList token_list;
-    init_token_list(&token_list);
-    tokenize(&lexer, &token_list);
+    init_lexer(&lexer, source, interner, syms);
 
+    init_token_list(token_list_out);
+    tokenize(&lexer, token_list_out);
+
+    // 4) Parser
     Parser parser = {
-        .toks = token_list.tokens,
-        .count = token_list.count,
-        .i = 0,
-        .arena = arena,
+        .toks        = token_list_out->tokens,
+        .count       = token_list_out->count,
+        .i           = 0,
+        .arena       = arena,
+        .interner    = interner,  // si tu struct Parser tiene este campo
+        .syms        = syms,      // si tu struct Parser tiene este campo
         .error_count = 0
     };
-    
     return parser;
+}
+
+// Helper para limpiar recursos
+static void cleanup_parser_resources(AstArena *arena, Interner *interner, Interned *syms, TokenList *tokens) {
+    if (arena) ast_arena_free(arena);
+    if (interner) {
+        interner_destroy(interner);
+        free(interner);
+    }
+    if (syms) free(syms);
+    if (tokens) free_token_list(tokens);
 }
 
 /* ============= Tests de Sentencias ============= */
@@ -38,7 +57,10 @@ static Parser create_parser_from_source(const char *source, AstArena **arena_out
 void test_parser_if_statement(void) {
     const char *source = "If (x > 5) Print(x); End";
     AstArena *arena;
-    Parser p = create_parser_from_source(source, &arena);
+    Interner *interner;
+    Interned *syms;
+    TokenList token_list;
+    Parser p = create_parser_from_source(source, &arena, &interner, &syms, &token_list);
     
     AstNode *program = parse_program(&p);
     
@@ -54,13 +76,16 @@ void test_parser_if_statement(void) {
     
     TEST_ASSERT_EQUAL(0, p.error_count);
     
-    ast_arena_free(arena);
+    cleanup_parser_resources(arena, interner, syms, &token_list);
 }
 
 void test_parser_if_else_statement(void) {
     const char *source = "If (x > 5) Print(x); Else Print(0); End";
     AstArena *arena;
-    Parser p = create_parser_from_source(source, &arena);
+    Interner *interner;
+    Interned *syms;
+    TokenList token_list;
+    Parser p = create_parser_from_source(source, &arena, &interner, &syms, &token_list);
     
     AstNode *program = parse_program(&p);
     
@@ -74,13 +99,16 @@ void test_parser_if_else_statement(void) {
     
     TEST_ASSERT_EQUAL(0, p.error_count);
     
-    ast_arena_free(arena);
+    cleanup_parser_resources(arena, interner, syms, &token_list);
 }
 
 void test_parser_if_elseif_else_statement(void) {
     const char *source = "If (x > 10) Print(1); ElseIf (x > 5) Print(2); Else Print(0); End";
     AstArena *arena;
-    Parser p = create_parser_from_source(source, &arena);
+    Interner *interner;
+    Interned *syms;
+    TokenList token_list;
+    Parser p = create_parser_from_source(source, &arena, &interner, &syms, &token_list);
     
     AstNode *program = parse_program(&p);
     
@@ -99,13 +127,16 @@ void test_parser_if_elseif_else_statement(void) {
     
     TEST_ASSERT_EQUAL(0, p.error_count);
     
-    ast_arena_free(arena);
+    cleanup_parser_resources(arena, interner, syms, &token_list);
 }
 
 void test_parser_while_statement(void) {
     const char *source = "While (x < 10) x += 1; Print(x); End";
     AstArena *arena;
-    Parser p = create_parser_from_source(source, &arena);
+    Interner *interner;
+    Interned *syms;
+    TokenList token_list;
+    Parser p = create_parser_from_source(source, &arena, &interner, &syms, &token_list);
     
     AstNode *program = parse_program(&p);
     
@@ -121,13 +152,16 @@ void test_parser_while_statement(void) {
     
     TEST_ASSERT_EQUAL(0, p.error_count);
     
-    ast_arena_free(arena);
+    cleanup_parser_resources(arena, interner, syms, &token_list);
 }
 
 void test_parser_for_statement(void) {
     const char *source = "For (Integer i = 0 : i < 10 : i += 1) Print(i); End";
     AstArena *arena;
-    Parser p = create_parser_from_source(source, &arena);
+    Interner *interner;
+    Interned *syms;
+    TokenList token_list;
+    Parser p = create_parser_from_source(source, &arena, &interner, &syms, &token_list);
     
     AstNode *program = parse_program(&p);
     
@@ -144,13 +178,16 @@ void test_parser_for_statement(void) {
     
     TEST_ASSERT_EQUAL(0, p.error_count);
     
-    ast_arena_free(arena);
+    cleanup_parser_resources(arena, interner, syms, &token_list);
 }
 
 void test_parser_print_statement(void) {
     const char *source = "Print(x, y, z);";
     AstArena *arena;
-    Parser p = create_parser_from_source(source, &arena);
+    Interner *interner;
+    Interned *syms;
+    TokenList token_list;
+    Parser p = create_parser_from_source(source, &arena, &interner, &syms, &token_list);
     
     AstNode *program = parse_program(&p);
     
@@ -161,13 +198,16 @@ void test_parser_print_statement(void) {
     
     TEST_ASSERT_EQUAL(0, p.error_count);
     
-    ast_arena_free(arena);
+    cleanup_parser_resources(arena, interner, syms, &token_list);
 }
 
 void test_parser_read_statement(void) {
     const char *source = "Read(x, y);";
     AstArena *arena;
-    Parser p = create_parser_from_source(source, &arena);
+    Interner *interner;
+    Interned *syms;
+    TokenList token_list;
+    Parser p = create_parser_from_source(source, &arena, &interner, &syms, &token_list);
     
     AstNode *program = parse_program(&p);
     
@@ -178,13 +218,16 @@ void test_parser_read_statement(void) {
     
     TEST_ASSERT_EQUAL(0, p.error_count);
     
-    ast_arena_free(arena);
+    cleanup_parser_resources(arena, interner, syms, &token_list);
 }
 
 void test_parser_return_statement(void) {
     const char *source = "Return x + y;";
     AstArena *arena;
-    Parser p = create_parser_from_source(source, &arena);
+    Interner *interner;
+    Interned *syms;
+    TokenList token_list;
+    Parser p = create_parser_from_source(source, &arena, &interner, &syms, &token_list);
     
     AstNode *program = parse_program(&p);
     
@@ -196,7 +239,7 @@ void test_parser_return_statement(void) {
     
     TEST_ASSERT_EQUAL(0, p.error_count);
     
-    ast_arena_free(arena);
+    cleanup_parser_resources(arena, interner, syms, &token_list);
 }
 
 /* ============= Tests de Bloques y Programas ============= */
@@ -204,7 +247,10 @@ void test_parser_return_statement(void) {
 void test_parser_block_with_multiple_statements(void) {
     const char *source = "Integer x = 5; Print(x); x += 1;";
     AstArena *arena;
-    Parser p = create_parser_from_source(source, &arena);
+    Interner *interner;
+    Interned *syms;
+    TokenList token_list;
+    Parser p = create_parser_from_source(source, &arena, &interner, &syms, &token_list);
     
     AstNode *program = parse_program(&p);
     
@@ -221,13 +267,16 @@ void test_parser_block_with_multiple_statements(void) {
     
     TEST_ASSERT_EQUAL(0, p.error_count);
     
-    ast_arena_free(arena);
+    cleanup_parser_resources(arena, interner, syms, &token_list);
 }
 
 void test_parser_nested_blocks(void) {
     const char *source = "If (x > 0) If (y > 0) Print(1); End End";
     AstArena *arena;
-    Parser p = create_parser_from_source(source, &arena);
+    Interner *interner;
+    Interned *syms;
+    TokenList token_list;
+    Parser p = create_parser_from_source(source, &arena, &interner, &syms, &token_list);
     
     AstNode *program = parse_program(&p);
     
@@ -244,7 +293,7 @@ void test_parser_nested_blocks(void) {
     
     TEST_ASSERT_EQUAL(0, p.error_count);
     
-    ast_arena_free(arena);
+    cleanup_parser_resources(arena, interner, syms, &token_list);
 }
 
 void test_parser_complete_program(void) {
@@ -262,7 +311,10 @@ void test_parser_complete_program(void) {
         "End";
     
     AstArena *arena;
-    Parser p = create_parser_from_source(source, &arena);
+    Interner *interner;
+    Interned *syms;
+    TokenList token_list;
+    Parser p = create_parser_from_source(source, &arena, &interner, &syms, &token_list);
     
     AstNode *program = parse_program(&p);
     
@@ -285,7 +337,7 @@ void test_parser_complete_program(void) {
     
     TEST_ASSERT_EQUAL(0, p.error_count);
     
-    ast_arena_free(arena);
+    cleanup_parser_resources(arena, interner, syms, &token_list);
 }
 
 /* ============= Tests de Manejo de Errores ============= */
@@ -293,7 +345,10 @@ void test_parser_complete_program(void) {
 void test_parser_error_handling_missing_semicolon(void) {
     const char *source = "Integer x = 5 Print(x);"; // Falta ; después de la declaración
     AstArena *arena;
-    Parser p = create_parser_from_source(source, &arena);
+    Interner *interner;
+    Interned *syms;
+    TokenList token_list;
+    Parser p = create_parser_from_source(source, &arena, &interner, &syms, &token_list);
     
     AstNode *program = parse_program(&p);
     
@@ -301,13 +356,16 @@ void test_parser_error_handling_missing_semicolon(void) {
     // Debe haber errores
     TEST_ASSERT_TRUE(p.error_count > 0);
     
-    ast_arena_free(arena);
+    cleanup_parser_resources(arena, interner, syms, &token_list);
 }
 
 void test_parser_error_handling_missing_end(void) {
     const char *source = "If (x > 5) Print(x);"; // Falta End
     AstArena *arena;
-    Parser p = create_parser_from_source(source, &arena);
+    Interner *interner;
+    Interned *syms;
+    TokenList token_list;
+    Parser p = create_parser_from_source(source, &arena, &interner, &syms, &token_list);
     
     AstNode *program = parse_program(&p);
     
@@ -315,13 +373,16 @@ void test_parser_error_handling_missing_end(void) {
     // Debe haber errores
     TEST_ASSERT_TRUE(p.error_count > 0);
     
-    ast_arena_free(arena);
+    cleanup_parser_resources(arena, interner, syms, &token_list);
 }
 
 void test_parser_error_handling_unexpected_token(void) {
     const char *source = "Integer 123 = 5;"; // Nombre de variable inválido
     AstArena *arena;
-    Parser p = create_parser_from_source(source, &arena);
+    Interner *interner;
+    Interned *syms;
+    TokenList token_list;
+    Parser p = create_parser_from_source(source, &arena, &interner, &syms, &token_list);
     
     AstNode *program = parse_program(&p);
     
@@ -329,13 +390,16 @@ void test_parser_error_handling_unexpected_token(void) {
     // Debe haber errores
     TEST_ASSERT_TRUE(p.error_count > 0);
     
-    ast_arena_free(arena);
+    cleanup_parser_resources(arena, interner, syms, &token_list);
 }
 
 void test_parser_error_recovery(void) {
     const char *source = "Integer x = 5; Integer y =; Integer z = 10;"; // Error en y
     AstArena *arena;
-    Parser p = create_parser_from_source(source, &arena);
+    Interner *interner;
+    Interned *syms;
+    TokenList token_list;
+    Parser p = create_parser_from_source(source, &arena, &interner, &syms, &token_list);
     
     AstNode *program = parse_program(&p);
     
@@ -345,5 +409,5 @@ void test_parser_error_recovery(void) {
     // Debe haber al menos algunas declaraciones parseadas
     TEST_ASSERT_TRUE(program->as.program.decls.count >= 1);
     
-    ast_arena_free(arena);
+    cleanup_parser_resources(arena, interner, syms, &token_list);
 }

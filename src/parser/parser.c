@@ -14,18 +14,41 @@ static inline const Token *advance(Parser *p) { return is_eof(p) ? NULL : &p->to
 
 static inline int tok_is(const Token *t, TokenType ty) { return t && t->type == ty; }
 
+/* Internamos el lexema del token y lo comparamos por puntero si es posible */
+static const char *intern_token_lexeme(Parser *p, const Token *t) {
+    if (!t || !t->lexeme) return NULL;
+    return interner_intern_slice(p->interner, t->lexeme, t->length);
+}
+
 static int lexeme_is(const Token *t, const char *kw) {
     if (!t || !t->lexeme) return 0;
     size_t n = strlen(kw);
     return t->length == n && strncmp(t->lexeme, kw, n) == 0;
 }
 
+/* Versión optimizada que usa punteros internados cuando es posible */
+static int lexeme_is_intern(Parser *p, const Token *t, const char *interned_str) {
+    if (!t || !t->lexeme) return 0;
+    const char *t_interned = intern_token_lexeme(p, t);
+    return t_interned == interned_str; // comparación de punteros
+}
+
 static int is_kw(const Token *t, const char *kw) {
     return tok_is(t, TOK_KEYWORD) && lexeme_is(t, kw);
 }
 
+/* Versión optimizada para palabras clave internadas */
+static int is_kw_intern(Parser *p, const Token *t, const char *interned_kw) {
+    return tok_is(t, TOK_KEYWORD) && lexeme_is_intern(p, t, interned_kw);
+}
+
 static int is_delim(const Token *t, const char *d) {
     return tok_is(t, TOK_DELIMITER) && lexeme_is(t, d);
+}
+
+/* Versión optimizada para delimitadores internados */
+static int is_delim_intern(Parser *p, const Token *t, const char *interned_delim) {
+    return tok_is(t, TOK_DELIMITER) && lexeme_is_intern(p, t, interned_delim);
 }
 
 static int is_type(const Token *t) {
@@ -34,6 +57,17 @@ static int is_type(const Token *t) {
         if (lexeme_is(t, BuiltinTypes[i])) return 1;
     }
     return 0;
+}
+
+/* Versión optimizada que usa símbolos internados */
+static int is_type_intern(Parser *p, const Token *t) {
+    if (!tok_is(t, TOK_KEYWORD)) return 0;
+    const char *t_interned = intern_token_lexeme(p, t);
+    return (t_interned == p->syms->T_Integer ||
+            t_interned == p->syms->T_Float ||
+            t_interned == p->syms->T_String ||
+            t_interned == p->syms->T_Boolean ||
+            t_interned == p->syms->T_Char);
 }
 
 static SrcSpan span_of_tok(const Token *t) {
@@ -96,6 +130,16 @@ static const Token *expect_kw(Parser *p, const char *kw) {
     return t;
 }
 
+/* Versión optimizada para palabras clave internadas */
+static const Token *expect_kw_intern(Parser *p, const char *interned_kw) {
+    const Token *t = at(p);
+    if (is_kw_intern(p, t, interned_kw)) return advance(p);
+    char error_msg[256];
+    snprintf(error_msg, sizeof(error_msg), "Se esperaba palabra clave internada");
+    err(p, t, error_msg);
+    return t;
+}
+
 static const Token *expect_delim(Parser *p, const char *d) {
     const Token *t = at(p);
     if (is_delim(t, d)) return advance(p);
@@ -105,9 +149,19 @@ static const Token *expect_delim(Parser *p, const char *d) {
     return t;
 }
 
+/* Versión optimizada para delimitadores internados */
+static const Token *expect_delim_intern(Parser *p, const char *interned_delim) {
+    const Token *t = at(p);
+    if (is_delim_intern(p, t, interned_delim)) return advance(p);
+    char error_msg[256];
+    snprintf(error_msg, sizeof(error_msg), "Se esperaba delimitador internado");
+    err(p, t, error_msg);
+    return t;
+}
+
 static const Token *expect_type(Parser *p) {
     const Token *t = at(p);
-    if (is_type(t)) return advance(p);
+    if (is_type_intern(p, t)) return advance(p);
     err(p, t, "Se esperaba tipo (String, Integer, Float, Boolean, Char)");
     return t;
 }
@@ -229,6 +283,45 @@ static OpCode opcode_from_tok(const Token *t) {
     return OP_NONE;
 }
 
+/* Versión optimizada que usa interner */
+static OpCode opcode_from_tok_intern(Parser *p, const Token *t) {
+    if (!t) return OP_NONE;
+    
+    /* asignaciones */
+    if (tok_is(t, TOK_ASSIGNMENT_OP)) {
+        if (lexeme_is(t,"="))  return OP_ASSIGN;
+        if (lexeme_is(t,"+=")) return OP_ADD_ASSIGN;
+        if (lexeme_is(t,"-=")) return OP_SUB_ASSIGN;
+    }
+    
+    /* aritméticos */
+    if (tok_is(t, TOK_ARITHMETIC_OP)) {
+        if (lexeme_is(t,"+")) return OP_ADD;
+        if (lexeme_is(t,"-")) return OP_SUB;
+        if (lexeme_is(t,"*")) return OP_MUL;
+        if (lexeme_is(t,"/")) return OP_DIV;
+        if (lexeme_is(t,"%")) return OP_MOD;
+    }
+    
+    /* lógicos / comparadores */
+    if (tok_is(t, TOK_LOGIC_OP)) {
+        if (lexeme_is(t,"And")) return OP_AND;
+        if (lexeme_is(t,"Or"))  return OP_OR;
+        if (lexeme_is(t,"=="))  return OP_EQ;
+        if (lexeme_is(t,"!="))  return OP_NEQ;
+        if (lexeme_is(t,"<"))   return OP_LT;
+        if (lexeme_is(t,"<="))  return OP_LTE;
+        if (lexeme_is(t,">"))   return OP_GT;
+        if (lexeme_is(t,">="))  return OP_GTE;
+    }
+    
+    /* unarios por keyword u op */
+    if (is_kw_intern(p, t, p->syms->K_Not)) return OP_NOT;
+    if (tok_is(t, TOK_ARITHMETIC_OP) && lexeme_is(t,"-")) return OP_NEG;
+    
+    return OP_NONE;
+}
+
 /* ========== Forward de expresiones (Pratt) ========== */
 static AstNode *parse_precedence(Parser *p, int min_prec);
 
@@ -279,7 +372,7 @@ static AstNode *parse_prefix(Parser *p) {
     /* identificador */
     if (tok_is(t, TOK_IDENTIFIER)) {
         AstNode *id = make_node(p, AST_IDENT, t);
-        id->as.ident.lexeme = t->lexeme;
+        id->as.ident.lexeme = intern_token_lexeme(p, t); // String internada
         advance(p);
         return id;
     }
@@ -301,13 +394,14 @@ static AstNode *parse_prefix(Parser *p) {
         }
         else if (tok_is(t, TOK_STRING) || tok_is(t, TOK_CHAR)) { 
             lit->as.literal.tag = LIT_STRING; 
-            lit->as.literal.val.s = t->lexeme; 
+            lit->as.literal.val.s = intern_token_lexeme(p, t); // String internada
         }
-        else if (tok_is(t, TOK_BOOLEAN) || is_kw(t,"True") || is_kw(t,"False")) { 
+        else if (tok_is(t, TOK_BOOLEAN) || is_kw_intern(p, t, p->syms->K_True) || is_kw_intern(p, t, p->syms->K_False)) { 
             lit->as.literal.tag = LIT_BOOL;
-            lit->as.literal.val.b = lexeme_is(t, "True") || lexeme_is(t, "true");
+            const char *t_interned = intern_token_lexeme(p, t);
+            lit->as.literal.val.b = (t_interned == p->syms->K_True);
         }
-        else if (is_kw(t,"Null")) { 
+        else if (is_kw_intern(p, t, p->syms->K_Null)) { 
             lit->as.literal.tag = LIT_NULL; 
         }
         
@@ -368,7 +462,7 @@ static AstNode *parse_postfix(Parser *p, AstNode *lhs) {
                     AstNode *call = make_node(p, AST_CALL, dot);
                     // Crear identificador especial para el método
                     AstNode *method_id = make_node(p, AST_IDENT, method_name);
-                    method_id->as.ident.lexeme = method_name->lexeme;
+                    method_id->as.ident.lexeme = intern_token_lexeme(p, method_name); // String internada
                     call->as.call.callee = method_id;
                     
                     // Primer argumento es el objeto base
@@ -391,7 +485,7 @@ static AstNode *parse_postfix(Parser *p, AstNode *lhs) {
                     
                     AstNode *call = make_node(p, AST_CALL, dot);
                     AstNode *method_id = make_node(p, AST_IDENT, method_name);
-                    method_id->as.ident.lexeme = method_name->lexeme;
+                    method_id->as.ident.lexeme = intern_token_lexeme(p, method_name); // String internada
                     call->as.call.callee = method_id;
                     list_push(p, &call->as.call.args, lhs);
                     
@@ -482,12 +576,12 @@ static AstNode *parse_var_declaration(Parser *p) {
     const Token *name_tok = expect_identifier(p);
     
     AstNode *var_decl = make_node_span(p, AST_VAR_DECL, type_tok, name_tok);
-    var_decl->as.var_decl.type_name = type_tok->lexeme;
-    var_decl->as.var_decl.name = name_tok->lexeme;
+    var_decl->as.var_decl.type_name = intern_token_lexeme(p, type_tok); // String internada
+    var_decl->as.var_decl.name = intern_token_lexeme(p, name_tok);      // String internada
     var_decl->as.var_decl.init = NULL;
     
     // Inicialización opcional
-    if (is_delim(at(p), "=")) {
+    if (tok_is(at(p), TOK_ASSIGNMENT_OP) && lexeme_is(at(p), "=")) {
         advance(p); // '='
         var_decl->as.var_decl.init = parse_expression(p);
     }
@@ -505,8 +599,8 @@ static AstNode *parse_array_declaration(Parser *p) {
     expect_delim(p, "]");
     
     AstNode *array_decl = make_node_span(p, AST_VAR_DECL, type_tok, name_tok);
-    array_decl->as.var_decl.type_name = type_tok->lexeme;
-    array_decl->as.var_decl.name = name_tok->lexeme;
+    array_decl->as.var_decl.type_name = intern_token_lexeme(p, type_tok); // String internada
+    array_decl->as.var_decl.name = intern_token_lexeme(p, name_tok);      // String internada
     array_decl->as.var_decl.init = size_expr; // Almacenar tamaño en init
     
     // Lista de elementos inicial opcional
@@ -525,8 +619,8 @@ static AstNode *parse_list_declaration(Parser *p) {
     const Token *name_tok = expect_identifier(p);
     
     AstNode *list_decl = make_node_span(p, AST_VAR_DECL, type_tok, name_tok);
-    list_decl->as.var_decl.type_name = "List"; // Marcar como lista
-    list_decl->as.var_decl.name = name_tok->lexeme;
+    list_decl->as.var_decl.type_name = p->syms->T_List; // Usar string internada para "List"
+    list_decl->as.var_decl.name = intern_token_lexeme(p, name_tok); // String internada
     list_decl->as.var_decl.init = NULL;
     
     // Lista de elementos inicial opcional
@@ -556,8 +650,8 @@ static AstNode *parse_function_declaration(Parser *p) {
     expect_delim(p, "(");
     
     AstNode *func_decl = make_node_span(p, AST_FUNC_DECL, ret_type_tok, name_tok);
-    func_decl->as.func_decl.name = name_tok->lexeme;
-    func_decl->as.func_decl.ret_type = ret_type_tok->lexeme;
+    func_decl->as.func_decl.name = intern_token_lexeme(p, name_tok);         // String internada
+    func_decl->as.func_decl.ret_type = intern_token_lexeme(p, ret_type_tok); // String internada
     
     // Parámetros
     if (!is_delim(at(p), ")")) {
@@ -566,8 +660,8 @@ static AstNode *parse_function_declaration(Parser *p) {
             const Token *param_name = expect_identifier(p);
             
             AstNode *param = make_node_span(p, AST_PARAM, param_type, param_name);
-            param->as.param.type_name = param_type->lexeme;
-            param->as.param.name = param_name->lexeme;
+            param->as.param.type_name = intern_token_lexeme(p, param_type); // String internada
+            param->as.param.name = intern_token_lexeme(p, param_name);      // String internada
             
             list_push(p, &func_decl->as.func_decl.params, param);
         } while (is_delim(at(p), ",") && advance(p));
@@ -641,7 +735,7 @@ static AstNode *parse_read(Parser *p) {
         }
         
         AstNode *n = make_node(p, AST_IDENT, id);
-        n->as.ident.lexeme = id->lexeme;
+        n->as.ident.lexeme = intern_token_lexeme(p, id); // String internada
         list_push(p, ts, n);
         advance(p);
     } while (is_delim(at(p), ",") && advance(p));
@@ -652,24 +746,24 @@ static AstNode *parse_read(Parser *p) {
 }
 
 static AstNode *parse_if(Parser *p) {
-    const Token *kw = expect_kw(p, "If");
-    expect_delim(p, "(");
+    const Token *kw = expect_kw_intern(p, p->syms->K_If); // Usar versión internada
+    expect_delim_intern(p, p->syms->D_LParen);           // Usar versión internada
     
     AstNode *n = make_node(p, AST_IF, kw);
     n->as.if_stmt.cond = parse_expression(p);
     
-    expect_delim(p, ")");
+    expect_delim_intern(p, p->syms->D_RParen);           // Usar versión internada
     n->as.if_stmt.then_blk = parse_block(p);
     
     // ElseIf*
-    while (is_kw(at(p),"ElseIf")) {
+    while (is_kw_intern(p, at(p), p->syms->K_ElseIf)) {  // Usar versión internada
         const Token *ek = advance(p);
-        expect_delim(p, "(");
+        expect_delim_intern(p, p->syms->D_LParen);       // Usar versión internada
         
         AstNode *pair = make_node(p, AST_IF, ek);
         pair->as.if_stmt.cond = parse_expression(p);
         
-        expect_delim(p, ")");
+        expect_delim_intern(p, p->syms->D_RParen);       // Usar versión internada
         pair->as.if_stmt.then_blk = parse_block(p);
         
         list_push(p, &n->as.if_stmt.elseifs, pair);

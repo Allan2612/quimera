@@ -3,6 +3,7 @@
 
 #include "lexer.h"
 #include "ast.h"
+#include "interner.h"
 #include <stddef.h>
 
 typedef struct {
@@ -10,6 +11,8 @@ typedef struct {
     size_t count;
     size_t i;            // índice actual
     AstArena *arena;
+    Interner *interner;  // para strings internadas
+    Interned *syms;      // símbolos predefinidos
     int error_count;
 } Parser;
 
