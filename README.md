@@ -1,7 +1,30 @@
-# Quimera — Guía rápida (Windows + VS Code + C)
+# Quimera — Compilador con IDE Integration
 
-Esta guía deja tu entorno listo para compilar y depurar solo con Make (integrado a VS Code) en Windows 11 x64 con MSYS2 (UCRT64) y GCC/GDB.  
-Se omiten las secciones del módulo symbol_table y el snippet de main.c (no son necesarios aquí).
+Compilador del lenguaje Quimera con sistema de diagnósticos unificado para integración en tiempo real con IDEs.
+
+## ✨ Características Nuevas
+
+- **Sistema de Diagnósticos JSON**: Salida estructurada en tiempo real
+- **Modo Interactivo**: `--interactive` para IDEs
+- **Comunicación Directa**: Sin threads, sin buffering
+- **Códigos de Error Organizados**: Por etapa del compilador
+- **Parser Unificado**: Solo interner, sin implementaciones mixtas
+
+## 🚀 Uso Rápido
+
+### Compilación Normal
+```bash
+# Con Makefile (recomendado)
+make debug
+
+# Con script personalizado
+./build.bat
+```
+
+### Modo IDE (Interactivo)
+```bash
+./bin/Quimera.exe --interactive archivo.qmr
+```
 
 ## 1) Requisitos e instalación
 

@@ -75,7 +75,7 @@ release: CFLAGS := $(RELEASE_CFLAGS)
 release: $(APP) $(TEST_BINS) $(APPS_BINS)
 
 run: debug
-	$(APP)
+	$(APP) --interactive
 
 # Compila todos los tests (sin ejecutarlos)
 tests: CFLAGS := $(DEBUG_CFLAGS)

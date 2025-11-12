@@ -1,2 +1,2 @@
-Integer x = "cadena sin cerrar;
+Integer x = "cadena sin cerrar";
 Print(x);

@@ -1,5 +1,5 @@
 #include "unity.h"
-#include "diag_errors.h"
+#include "diag.h"
 
 void register_ast_tests(void);
 
@@ -8,7 +8,7 @@ void tearDown(void){ /* vacío a propósito */ }
 
 int main(void) {
     // Inicializa una sola vez (modo síncrono; sin hilo)
-    diag_init(false, NULL);
+    diag_init();
 
     UNITY_BEGIN();
     register_ast_tests();

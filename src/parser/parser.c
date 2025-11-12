@@ -27,64 +27,41 @@ static int lexeme_is_intern(Parser *p, const Token *t, const char *interned_str)
     return interned_lexeme == interned_str;
 }
 
-/* Helper: Funciones para obtener strings internados comunes */
-static const char *get_intern_delim(Parser *p, const char *delim) {
-    return interner_intern_cstr(p->interner, delim);
-}
-
-static const char *get_intern_op(Parser *p, const char *op) {
-    return interner_intern_cstr(p->interner, op);
-}
-
-static const char *get_intern_kw(Parser *p, const char *kw) {
-    return interner_intern_cstr(p->interner, kw);
-}
-
-/* Helper para compatibilidad temporal */
-static int lexeme_is(const Token *t, const char *s) {
+/* Helper para compatibilidad temporal con strings literales */
+static int lexeme_is(Parser *p, const Token *t, const char *s) {
     if (!t || !t->lexeme || !s) return 0;
-    return strncmp(t->lexeme, s, t->length) == 0 && strlen(s) == t->length;
+    const char *interned_s = interner_intern_cstr(p->interner, s);
+    const char *interned_lexeme = intern_token_lexeme(p, t);
+    return interned_lexeme == interned_s;
 }
 
 /* Token check functions - SOLO INTERNER */
-static int is_kw_intern(Parser *p, const Token *t, const char *interned_kw) {
+static int is_kw(Parser *p, const Token *t, const char *kw) {
+    const char *interned_kw = interner_intern_cstr(p->interner, kw);
     return tok_is(t, TOK_KEYWORD) && lexeme_is_intern(p, t, interned_kw);
 }
 
-/* Funciones temporales de compatibilidad - TODO: migrar a _intern */
-static int is_kw(const Token *t, const char *kw) {
-    return tok_is(t, TOK_KEYWORD) && lexeme_is(t, kw);
-}
-
-static int is_delim(const Token *t, const char *d) {
-    return tok_is(t, TOK_DELIMITER) && lexeme_is(t, d);
-}
-
-static int is_type(const Token *t) {
-    if (!tok_is(t, TOK_KEYWORD)) return 0;
-    for (size_t i = 0; i < BuiltinTypeCount; i++) {
-        if (lexeme_is(t, BuiltinTypes[i])) return 1;
-    }
-    return 0;
-}
-
-static int is_delim_intern(Parser *p, const Token *t, const char *interned_delim) {
+static int is_delim(Parser *p, const Token *t, const char *d) {
+    const char *interned_delim = interner_intern_cstr(p->interner, d);
     return tok_is(t, TOK_DELIMITER) && lexeme_is_intern(p, t, interned_delim);
 }
 
-static int is_assignment_intern(Parser *p, const Token *t, const char *interned_op) {
+static int is_assignment(Parser *p, const Token *t, const char *op) {
+    const char *interned_op = interner_intern_cstr(p->interner, op);
     return tok_is(t, TOK_ASSIGNMENT_OP) && lexeme_is_intern(p, t, interned_op);
 }
 
-static int is_arithmetic_intern(Parser *p, const Token *t, const char *interned_op) {
+static int is_arithmetic(Parser *p, const Token *t, const char *op) {
+    const char *interned_op = interner_intern_cstr(p->interner, op);
     return tok_is(t, TOK_ARITHMETIC_OP) && lexeme_is_intern(p, t, interned_op);
 }
 
-static int is_logic_intern(Parser *p, const Token *t, const char *interned_op) {
+static int is_logic(Parser *p, const Token *t, const char *op) {
+    const char *interned_op = interner_intern_cstr(p->interner, op);
     return tok_is(t, TOK_LOGIC_OP) && lexeme_is_intern(p, t, interned_op);
 }
 
-static int is_type_intern(Parser *p, const Token *t) {
+static int is_type(Parser *p, const Token *t) {
     if (!tok_is(t, TOK_KEYWORD)) return 0;
     const char *t_interned = intern_token_lexeme(p, t);
     return (t_interned == p->syms->T_Integer ||
@@ -134,56 +111,40 @@ static void err(Parser *p, const Token *t, const char *msg) {
     }
 }
 
-/* Consumo con expectativa básica */
-static const Token *expect_kw(Parser *p, const char *kw) {
-    const Token *t = at(p);
-    if (is_kw(t, kw)) return advance(p);
-    char error_msg[256];
-    snprintf(error_msg, sizeof(error_msg), "Se esperaba palabra clave '%s'", kw);
-    err(p, t, error_msg);
-    return t;
+/* Expectativas de tokens */
+static Token *expect_kw(Parser *p, const char *kw) {
+    Token *t = at(p);
+    if (is_kw(p, t, kw)) return advance(p);
+    printf("{\"severity\":\"error\", \"code\":2001, \"message\":\"se esperaba palabra clave '%s', se encontró '%.*s'\", \"line\":%d}\n", 
+           kw, (int)t->length, t->lexeme, (int)t->line);
+    p->error_count++;
+    return NULL;
 }
 
-/* Versión optimizada para palabras clave internadas */
-static const Token *expect_kw_intern(Parser *p, const char *interned_kw) {
-    const Token *t = at(p);
-    if (is_kw_intern(p, t, interned_kw)) return advance(p);
-    char error_msg[256];
-    snprintf(error_msg, sizeof(error_msg), "Se esperaba palabra clave internada");
-    err(p, t, error_msg);
-    return t;
-}
-
-static const Token *expect_delim(Parser *p, const char *d) {
-    const Token *t = at(p);
-    if (is_delim(t, d)) return advance(p);
-    char error_msg[256];
-    snprintf(error_msg, sizeof(error_msg), "Se esperaba delimitador '%s'", d);
-    err(p, t, error_msg);
-    return t;
-}
-
-/* Versión optimizada para delimitadores internados */
-static const Token *expect_delim_intern(Parser *p, const char *interned_delim) {
-    const Token *t = at(p);
-    if (is_delim_intern(p, t, interned_delim)) return advance(p);
-    char error_msg[256];
-    snprintf(error_msg, sizeof(error_msg), "Se esperaba delimitador internado");
-    err(p, t, error_msg);
-    return t;
+static Token *expect_delim(Parser *p, const char *d) {
+    Token *t = at(p);
+    if (is_delim(p, t, d)) return advance(p);
+    printf("{\"severity\":\"error\", \"code\":2002, \"message\":\"se esperaba delimitador '%s', se encontró '%.*s'\", \"line\":%d}\n",
+           d, (int)t->length, t->lexeme, (int)t->line);
+    p->error_count++;
+    return NULL;
 }
 
 static const Token *expect_type(Parser *p) {
     const Token *t = at(p);
-    if (is_type_intern(p, t)) return advance(p);
-    err(p, t, "Se esperaba tipo (String, Integer, Float, Boolean, Char)");
+    if (is_type(p, t)) return advance(p);
+    printf("{\"severity\":\"error\", \"code\":2003, \"message\":\"se esperaba tipo, se encontró '%.*s'\", \"line\":%d}\n",
+           (int)t->length, t->lexeme, (int)t->line);
+    p->error_count++;
     return t;
 }
 
 static const Token *expect_identifier(Parser *p) {
     const Token *t = at(p);
     if (tok_is(t, TOK_IDENTIFIER)) return advance(p);
-    err(p, t, "Se esperaba identificador");
+    printf("{\"severity\":\"error\", \"code\":2004, \"message\":\"se esperaba identificador, se encontró '%.*s'\", \"line\":%d}\n",
+           (int)t->length, t->lexeme, (int)t->line);
+    p->error_count++;
     return t;
 }
 
@@ -238,114 +199,70 @@ typedef enum {
     PREC_POST   = 8
 } Precedence;
 
-static Precedence infix_prec_from_tok(const Token *t) {
+static Precedence infix_prec_from_tok(Parser *p, const Token *t) {
     if (!t) return PREC_ASSIGN;
     if (tok_is(t, TOK_ASSIGNMENT_OP)) return PREC_ASSIGN;
     
     if (tok_is(t, TOK_ARITHMETIC_OP)) {
-        if (lexeme_is(t, "**")) return PREC_POW;
-        if (lexeme_is(t, "*") || lexeme_is(t, "/") || lexeme_is(t, "%")) return PREC_MUL;
-        if (lexeme_is(t, "+") || lexeme_is(t, "-")) return PREC_ADD;
+        if (lexeme_is(p, t, "**")) return PREC_POW;
+        if (lexeme_is(p, t, "*") || lexeme_is(p, t, "/") || lexeme_is(p, t, "%")) return PREC_MUL;
+        if (lexeme_is(p, t, "+") || lexeme_is(p, t, "-")) return PREC_ADD;
     }
     
     if (tok_is(t, TOK_LOGIC_OP)) {
-        if (lexeme_is(t, "And") || lexeme_is(t, "Or")) return PREC_LOGIC;
-        if (lexeme_is(t, "==") || lexeme_is(t, "!=")) return PREC_EQUAL;
-        if (lexeme_is(t, "<") || lexeme_is(t, "<=") || lexeme_is(t, ">") || lexeme_is(t, ">=")) return PREC_CMP;
+        if (lexeme_is(p, t, "And") || lexeme_is(p, t, "Or")) return PREC_LOGIC;
+        if (lexeme_is(p, t, "==") || lexeme_is(p, t, "!=")) return PREC_EQUAL;
+        if (lexeme_is(p, t, "<") || lexeme_is(p, t, "<=") || lexeme_is(p, t, ">") || lexeme_is(p, t, ">=")) return PREC_CMP;
     }
     
-    if (tok_is(t, TOK_DELIMITER) && (lexeme_is(t, "(") || lexeme_is(t, "["))) return PREC_POST;
+    if (tok_is(t, TOK_DELIMITER) && (lexeme_is(p, t, "(") || lexeme_is(p, t, "["))) return PREC_POST;
     
     return PREC_ASSIGN;
 }
 
-static OpCode opcode_from_tok(const Token *t) {
+static OpCode opcode_from_tok(Parser *p, const Token *t) {
     if (!t) return OP_NONE;
     
     /* asignaciones */
     if (tok_is(t, TOK_ASSIGNMENT_OP)) {
-        if (lexeme_is(t,"="))  return OP_ASSIGN;
-        if (lexeme_is(t,"+=")) return OP_ADD_ASSIGN;
-        if (lexeme_is(t,"-=")) return OP_SUB_ASSIGN;
+        if (lexeme_is(p, t,"="))  return OP_ASSIGN;
+        if (lexeme_is(p, t,"+=")) return OP_ADD_ASSIGN;
+        if (lexeme_is(p, t,"-=")) return OP_SUB_ASSIGN;
     }
     
     /* aritméticos */
     if (tok_is(t, TOK_ARITHMETIC_OP)) {
-        if (lexeme_is(t,"+")) return OP_ADD;
-        if (lexeme_is(t,"-")) return OP_SUB;
-        if (lexeme_is(t,"*")) return OP_MUL;
-        if (lexeme_is(t,"/")) return OP_DIV;
-        if (lexeme_is(t,"%")) return OP_MOD;
+        if (lexeme_is(p, t,"+")) return OP_ADD;
+        if (lexeme_is(p, t,"-")) return OP_SUB;
+        if (lexeme_is(p, t,"*")) return OP_MUL;
+        if (lexeme_is(p, t,"/")) return OP_DIV;
+        if (lexeme_is(p, t,"%")) return OP_MOD;
     }
     
     /* lógicos / comparadores */
     if (tok_is(t, TOK_LOGIC_OP)) {
-        if (lexeme_is(t,"And")) return OP_AND;
-        if (lexeme_is(t,"Or"))  return OP_OR;
-        if (lexeme_is(t,"Not"))  return OP_NOT;
-        if (lexeme_is(t,"=="))  return OP_EQ;
-        if (lexeme_is(t,"!="))  return OP_NEQ;
-        if (lexeme_is(t,"<"))   return OP_LT;
-        if (lexeme_is(t,"<="))  return OP_LTE;
-        if (lexeme_is(t,">"))   return OP_GT;
-        if (lexeme_is(t,">="))  return OP_GTE;
+        if (lexeme_is(p, t,"And")) return OP_AND;
+        if (lexeme_is(p, t,"Or"))  return OP_OR;
+        if (lexeme_is(p, t,"Not"))  return OP_NOT;
+        if (lexeme_is(p, t,"=="))  return OP_EQ;
+        if (lexeme_is(p, t,"!="))  return OP_NEQ;
+        if (lexeme_is(p, t,"<"))   return OP_LT;
+        if (lexeme_is(p, t,"<="))  return OP_LTE;
+        if (lexeme_is(p, t,">"))   return OP_GT;
+        if (lexeme_is(p, t,">="))  return OP_GTE;
     }
     
     return OP_NONE;
 }
 
-/* Función específica para operadores unarios */
-static OpCode opcode_from_tok_unary(const Token *t) {
+/* Funciones auxiliares para unarios */
+static OpCode unary_opcode_from_tok(Parser *p, const Token *t) {
     if (!t) return OP_NONE;
-    
-    if (tok_is(t, TOK_LOGIC_OP)){
-        if (lexeme_is(t,"Not"))  return OP_NOT;
-        if (lexeme_is(t,"!"))    return OP_NOT;
-    }
-    
-    if (tok_is(t, TOK_ARITHMETIC_OP)) {
-        if (lexeme_is(t,"-")) return OP_NEG;
-        if (lexeme_is(t,"+")) return OP_ADD; // + unario (normalmente no hace nada)
-    }
-    
-    return OP_NONE;
-}
-
-/* Versión optimizada que usa interner */
-static OpCode opcode_from_tok_intern(Parser *p, const Token *t) {
-    if (!t) return OP_NONE;
-    
-    /* asignaciones */
-    if (tok_is(t, TOK_ASSIGNMENT_OP)) {
-        if (lexeme_is(t,"="))  return OP_ASSIGN;
-        if (lexeme_is(t,"+=")) return OP_ADD_ASSIGN;
-        if (lexeme_is(t,"-=")) return OP_SUB_ASSIGN;
-    }
-    
-    /* aritméticos */
-    if (tok_is(t, TOK_ARITHMETIC_OP)) {
-        if (lexeme_is(t,"+")) return OP_ADD;
-        if (lexeme_is(t,"-")) return OP_SUB;
-        if (lexeme_is(t,"*")) return OP_MUL;
-        if (lexeme_is(t,"/")) return OP_DIV;
-        if (lexeme_is(t,"%")) return OP_MOD;
-    }
-    
-    /* lógicos / comparadores */
-    if (tok_is(t, TOK_LOGIC_OP)) {
-        if (lexeme_is(t,"And")) return OP_AND;
-        if (lexeme_is(t,"Or"))  return OP_OR;
-        if (lexeme_is(t,"=="))  return OP_EQ;
-        if (lexeme_is(t,"!="))  return OP_NEQ;
-        if (lexeme_is(t,"<"))   return OP_LT;
-        if (lexeme_is(t,"<="))  return OP_LTE;
-        if (lexeme_is(t,">"))   return OP_GT;
-        if (lexeme_is(t,">="))  return OP_GTE;
-    }
     
     /* unarios por keyword u op */
-    if (is_kw_intern(p, t, p->syms->K_Not)) return OP_NOT;
-    if (tok_is(t, TOK_ARITHMETIC_OP) && lexeme_is(t,"-")) return OP_NEG;
+    if (lexeme_is_intern(p, t, p->syms->K_Not)) return OP_NOT;
+    if (tok_is(t, TOK_ARITHMETIC_OP) && lexeme_is(p, t, "-")) return OP_NEG;
+    if (tok_is(t, TOK_ARITHMETIC_OP) && lexeme_is(p, t, "+")) return OP_ADD;
     
     return OP_NONE;
 }
@@ -358,11 +275,11 @@ static AstNode *parse_list_elements(Parser *p) {
     AstNode *list = make_node(p, AST_BLOCK, at(p)); // Usar AST_BLOCK como contenedor temporal
     expect_delim(p, "{");
     
-    if (!is_delim(at(p), "}")) {
+    if (!is_delim(p, at(p), "}")) {
         do {
             AstNode *expr = parse_expression(p);
             if (expr) list_push(p, &list->as.block.stmts, expr);
-        } while (is_delim(at(p), ",") && advance(p));
+        } while (is_delim(p, at(p), ",") && advance(p));
     }
     
     expect_delim(p, "}");
@@ -378,7 +295,7 @@ static AstNode *parse_prefix(Parser *p) {
     }
 
     /* paréntesis */
-    if (is_delim(t, "(")) {
+    if (is_delim(p, t, "(")) {
         advance(p);
         AstNode *e = parse_expression(p);
         expect_delim(p, ")");
@@ -386,8 +303,8 @@ static AstNode *parse_prefix(Parser *p) {
     }
 
     /* unarios: Not, -, + */
-    if ((tok_is(t, TOK_LOGIC_OP) && (lexeme_is(t,"Not") || lexeme_is(t,"!"))) || (tok_is(t, TOK_ARITHMETIC_OP) && (lexeme_is(t,"-") || lexeme_is(t,"+")))) {
-        OpCode op = opcode_from_tok_unary(t);
+    if ((tok_is(t, TOK_LOGIC_OP) && (lexeme_is(p, t,"Not") || lexeme_is(p, t,"!"))) || (tok_is(t, TOK_ARITHMETIC_OP) && (lexeme_is(p, t,"-") || lexeme_is(p, t,"+")))) {
+        OpCode op = unary_opcode_from_tok(p, t);
         advance(p);
         AstNode *rhs = parse_precedence(p, PREC_UNARY);
         AstNode *u = make_node(p, AST_UNOP, t);
@@ -406,8 +323,8 @@ static AstNode *parse_prefix(Parser *p) {
 
     /* literales */
     if (tok_is(t, TOK_INTEGER) || tok_is(t, TOK_FLOAT) || tok_is(t, TOK_STRING) || 
-        tok_is(t, TOK_CHAR) || tok_is(t, TOK_BOOLEAN) || is_kw(t,"Null") ||
-        is_kw(t,"True") || is_kw(t,"False")) {
+        tok_is(t, TOK_CHAR) || tok_is(t, TOK_BOOLEAN) || is_kw(p, t,"Null") ||
+        is_kw(p, t,"True") || is_kw(p, t,"False")) {
         
         AstNode *lit = make_node(p, AST_LITERAL, t);
         
@@ -423,12 +340,12 @@ static AstNode *parse_prefix(Parser *p) {
             lit->as.literal.tag = LIT_STRING; 
             lit->as.literal.val.s = intern_token_lexeme(p, t); // String internada
         }
-        else if (tok_is(t, TOK_BOOLEAN) || is_kw_intern(p, t, p->syms->K_True) || is_kw_intern(p, t, p->syms->K_False)) { 
+        else if (tok_is(t, TOK_BOOLEAN) || lexeme_is_intern(p, t, p->syms->K_True) || lexeme_is_intern(p, t, p->syms->K_False)) { 
             lit->as.literal.tag = LIT_BOOL;
             const char *t_interned = intern_token_lexeme(p, t);
             lit->as.literal.val.b = (t_interned == p->syms->K_True);
         }
-        else if (is_kw_intern(p, t, p->syms->K_Null)) { 
+        else if (lexeme_is_intern(p, t, p->syms->K_Null)) { 
             lit->as.literal.tag = LIT_NULL; 
         }
         
@@ -448,17 +365,17 @@ static AstNode *parse_postfix(Parser *p, AstNode *lhs) {
         if (!t) break;
 
         /* llamada: func(arglist) */
-        if (is_delim(t, "(")) {
+        if (is_delim(p, t, "(")) {
             advance(p); // '('
             AstNode *call = make_node(p, AST_CALL, t);
             call->as.call.callee = lhs;
             AstList *args = &call->as.call.args;
 
-            if (!is_delim(at(p), ")")) {
+            if (!is_delim(p, at(p), ")")) {
                 do {
                     AstNode *arg = parse_expression(p);
                     if (arg) list_push(p, args, arg);
-                } while (is_delim(at(p), ",") && advance(p));
+                } while (is_delim(p, at(p), ",") && advance(p));
             }
             expect_delim(p, ")");
             lhs = call;
@@ -466,7 +383,7 @@ static AstNode *parse_postfix(Parser *p, AstNode *lhs) {
         }
 
         /* indexación: arr[expr] */
-        if (is_delim(t, "[")) {
+        if (is_delim(p, t, "[")) {
             advance(p); // '['
             AstNode *idx = make_node(p, AST_INDEX, t);
             idx->as.index.base = lhs;
@@ -477,12 +394,12 @@ static AstNode *parse_postfix(Parser *p, AstNode *lhs) {
         }
 
         /* métodos de lista: .append(), .remove(), .size() */
-        if (tok_is(t, TOK_ARITHMETIC_OP) && lexeme_is(t, ".")) {
+        if (tok_is(t, TOK_ARITHMETIC_OP) && lexeme_is(p, t, ".")) {
             const Token *dot = advance(p); // '.'
             const Token *method_name = at(p);
             
             if (tok_is(method_name, TOK_IDENTIFIER)) {
-                if (lexeme_is(method_name, "append") || lexeme_is(method_name, "remove")) {
+                if (lexeme_is(p, method_name, "append") || lexeme_is(p, method_name, "remove")) {
                     advance(p); // nombre del método
                     expect_delim(p, "(");
                     
@@ -496,7 +413,7 @@ static AstNode *parse_postfix(Parser *p, AstNode *lhs) {
                     list_push(p, &call->as.call.args, lhs);
                     
                     // Segundo argumento es el valor
-                    if (!is_delim(at(p), ")")) {
+                    if (!is_delim(p, at(p), ")")) {
                         AstNode *arg = parse_expression(p);
                         if (arg) list_push(p, &call->as.call.args, arg);
                     }
@@ -505,7 +422,7 @@ static AstNode *parse_postfix(Parser *p, AstNode *lhs) {
                     lhs = call;
                     continue;
                 }
-                else if (lexeme_is(method_name, "size")) {
+                else if (lexeme_is(p, method_name, "size")) {
                     advance(p); // nombre del método
                     expect_delim(p, "(");
                     expect_delim(p, ")");
@@ -541,12 +458,12 @@ static AstNode *parse_precedence(Parser *p, int min_prec) {
         const Token *op_t = at(p);
         if (!op_t) break;
 
-        Precedence prec = infix_prec_from_tok(op_t);
+        Precedence prec = infix_prec_from_tok(p, op_t);
         if (prec < min_prec) break;
 
         /* asignación (asociativa a derecha) */
         if (tok_is(op_t, TOK_ASSIGNMENT_OP)) {
-            OpCode op = opcode_from_tok(op_t);
+            OpCode op = opcode_from_tok(p, op_t);
             advance(p);
             AstNode *rhs = parse_precedence(p, PREC_ASSIGN); // right-assoc
             AstNode *as = make_node(p, AST_ASSIGN, op_t);
@@ -558,7 +475,7 @@ static AstNode *parse_precedence(Parser *p, int min_prec) {
         }
 
         /* exponenciación ** (asociativa a derecha) */
-        if (tok_is(op_t, TOK_ARITHMETIC_OP) && lexeme_is(op_t, "**")) {
+        if (tok_is(op_t, TOK_ARITHMETIC_OP) && lexeme_is(p, op_t, "**")) {
             advance(p);
             AstNode *rhs = parse_precedence(p, PREC_POW); // right-assoc
             AstNode *bin = make_node(p, AST_BINOP, op_t);
@@ -570,7 +487,7 @@ static AstNode *parse_precedence(Parser *p, int min_prec) {
         }
 
         /* binarios normales (left-assoc) */
-        OpCode op = opcode_from_tok(op_t);
+        OpCode op = opcode_from_tok(p, op_t);
         if (op == OP_NONE) break;
         
         int next_min = prec + 1; // left-assoc por defecto
@@ -608,7 +525,7 @@ static AstNode *parse_var_declaration(Parser *p) {
     var_decl->as.var_decl.init = NULL;
     
     // Inicialización opcional
-    if (tok_is(at(p), TOK_ASSIGNMENT_OP) && lexeme_is(at(p), "=")) {
+    if (tok_is(at(p), TOK_ASSIGNMENT_OP) && lexeme_is(p, at(p), "=")) {
         advance(p); // '='
         var_decl->as.var_decl.init = parse_expression(p);
     }
@@ -628,7 +545,7 @@ static AstNode *parse_var_declaration_no_semicolon(Parser *p) {
     var_decl->as.var_decl.init = NULL;
     
     // Inicialización opcional
-    if (tok_is(at(p), TOK_ASSIGNMENT_OP) && lexeme_is(at(p), "=")) {
+    if (tok_is(at(p), TOK_ASSIGNMENT_OP) && lexeme_is(p, at(p), "=")) {
         advance(p); // '='
         var_decl->as.var_decl.init = parse_expression(p);
     }
@@ -650,7 +567,7 @@ static AstNode *parse_array_declaration(Parser *p) {
     array_decl->as.var_decl.init = size_expr; // Almacenar tamaño en init
     
     // Lista de elementos inicial opcional
-    if (is_delim(at(p), "{")) {
+    if (is_delim(p, at(p), "{")) {
         AstNode *elements = parse_list_elements(p);
         // En una implementación más completa, almacenarías esto en otro campo
     }
@@ -670,7 +587,7 @@ static AstNode *parse_list_declaration(Parser *p) {
     list_decl->as.var_decl.init = NULL;
     
     // Lista de elementos inicial opcional
-    if (is_delim(at(p), "{")) {
+    if (is_delim(p, at(p), "{")) {
         list_decl->as.var_decl.init = parse_list_elements(p);
     }
     
@@ -682,9 +599,9 @@ static AstNode *parse_function_declaration(Parser *p) {
     const Token *ret_type_tok = NULL;
     
     // Tipo de retorno
-    if (is_type(at(p))) {
+    if (is_type(p, at(p))) {
         ret_type_tok = advance(p);
-    } else if (is_kw(at(p), "Null")) {
+    } else if (is_kw(p, at(p), "Null")) {
         ret_type_tok = advance(p);
     } else {
         err(p, at(p), "Se esperaba tipo de retorno de función");
@@ -700,7 +617,7 @@ static AstNode *parse_function_declaration(Parser *p) {
     func_decl->as.func_decl.ret_type = intern_token_lexeme(p, ret_type_tok); // String internada
     
     // Parámetros
-    if (!is_delim(at(p), ")")) {
+    if (!is_delim(p, at(p), ")")) {
         do {
             const Token *param_type = expect_type(p);
             const Token *param_name = expect_identifier(p);
@@ -710,7 +627,7 @@ static AstNode *parse_function_declaration(Parser *p) {
             param->as.param.name = intern_token_lexeme(p, param_name);      // String internada
             
             list_push(p, &func_decl->as.func_decl.params, param);
-        } while (is_delim(at(p), ",") && advance(p));
+        } while (is_delim(p, at(p), ",") && advance(p));
     }
     
     expect_delim(p, ")");
@@ -730,7 +647,7 @@ static AstNode *parse_expr_stmt(Parser *p) {
     AstNode *s = make_node(p, AST_EXPR, t0);
     s->as.expr.expr = e;
     
-    if (is_delim(at(p), ";")) advance(p);
+    if (is_delim(p, at(p), ";")) advance(p);
     return s;
 }
 
@@ -739,11 +656,11 @@ static AstNode *parse_return(Parser *p) {
     AstNode *r = make_node(p, AST_RETURN, kw);
     r->as.ret.expr = NULL;
     
-    if (!is_delim(at(p), ";") && !is_kw(at(p), "End") && !is_eof(p)) {
+    if (!is_delim(p, at(p), ";") && !is_kw(p, at(p), "End") && !is_eof(p)) {
         r->as.ret.expr = parse_expression(p);
     }
     
-    if (is_delim(at(p), ";")) advance(p);
+    if (is_delim(p, at(p), ";")) advance(p);
     return r;
 }
 
@@ -754,15 +671,15 @@ static AstNode *parse_print(Parser *p) {
     AstNode *pr = make_node(p, AST_PRINT, kw);
     AstList *xs = &pr->as.print.exprs;
     
-    if (!is_delim(at(p), ")")) {
+    if (!is_delim(p, at(p), ")")) {
         do {
             AstNode *e = parse_expression(p);
             if (e) list_push(p, xs, e);
-        } while (is_delim(at(p), ",") && advance(p));
+        } while (is_delim(p, at(p), ",") && advance(p));
     }
     
     expect_delim(p, ")");
-    if (is_delim(at(p), ";")) advance(p);
+    if (is_delim(p, at(p), ";")) advance(p);
     return pr;
 }
 
@@ -784,39 +701,39 @@ static AstNode *parse_read(Parser *p) {
         n->as.ident.lexeme = intern_token_lexeme(p, id); // String internada
         list_push(p, ts, n);
         advance(p);
-    } while (is_delim(at(p), ",") && advance(p));
+    } while (is_delim(p, at(p), ",") && advance(p));
     
     expect_delim(p, ")");
-    if (is_delim(at(p), ";")) advance(p);
+    if (is_delim(p, at(p), ";")) advance(p);
     return rd;
 }
 
 static AstNode *parse_if(Parser *p) {
-    const Token *kw = expect_kw_intern(p, p->syms->K_If); // Usar versión internada
-    expect_delim_intern(p, p->syms->D_LParen);           // Usar versión internada
+    const Token *kw = expect_kw(p, "If");
+    expect_delim(p, "(");
     
     AstNode *n = make_node(p, AST_IF, kw);
     n->as.if_stmt.cond = parse_expression(p);
     
-    expect_delim_intern(p, p->syms->D_RParen);           // Usar versión internada
+    expect_delim(p, ")");
     n->as.if_stmt.then_blk = parse_block(p);
     
     // ElseIf*
-    while (is_kw_intern(p, at(p), p->syms->K_ElseIf)) {  // Usar versión internada
+    while (is_kw(p, at(p), "ElseIf")) {
         const Token *ek = advance(p);
-        expect_delim_intern(p, p->syms->D_LParen);       // Usar versión internada
+        expect_delim(p, "(");
         
         AstNode *pair = make_node(p, AST_IF, ek);
         pair->as.if_stmt.cond = parse_expression(p);
         
-        expect_delim_intern(p, p->syms->D_RParen);       // Usar versión internada
+        expect_delim(p, ")");
         pair->as.if_stmt.then_blk = parse_block(p);
         
         list_push(p, &n->as.if_stmt.elseifs, pair);
     }
     
     // Else?
-    if (is_kw(at(p),"Else")) {
+    if (is_kw(p, at(p),"Else")) {
         advance(p);
         n->as.if_stmt.else_blk = parse_block(p);
     }
@@ -847,7 +764,7 @@ static AstNode *parse_for_stmt(Parser *p) {
     
     // Inicialización: declaración o asignación
     const Token *lookahead = peek(p, 1);
-    if (is_type(at(p)) && tok_is(lookahead, TOK_IDENTIFIER)) {
+    if (is_type(p, at(p)) && tok_is(lookahead, TOK_IDENTIFIER)) {
         // Es una declaración de variable (sin punto y coma)
         n->as.for_stmt.init = parse_var_declaration_no_semicolon(p);
     } else {
@@ -881,7 +798,7 @@ AstNode *parse_block(Parser *p) {
     
     for (;;) {
         if (is_eof(p)) break;
-        if (is_kw(at(p),"End") || is_kw(at(p),"Else") || is_kw(at(p),"ElseIf")) break;
+        if (is_kw(p, at(p),"End") || is_kw(p, at(p),"Else") || is_kw(p, at(p),"ElseIf")) break;
         
         AstNode *s = parse_statement(p);
         if (s) {
@@ -902,23 +819,23 @@ static AstNode *parse_declaration(Parser *p) {
     if (!t) return NULL;
     
     // Detectar tipo de declaración
-    if (is_type(t)) {
+    if (is_type(p, t)) {
         if (tok_is(next, TOK_IDENTIFIER)) {
-            if (is_delim(next2, "(")) {
+            if (is_delim(p, next2, "(")) {
                 // Es declaración de función: tipo nombre(
                 return parse_function_declaration(p);
-            } else if (is_delim(next2, "[")) {
+            } else if (is_delim(p, next2, "[")) {
                 // Es declaración de arreglo: tipo nombre[
                 return parse_array_declaration(p);
             } else {
                 // Es declaración de variable: tipo nombre
                 return parse_var_declaration(p);
             }
-        } else if (is_kw(next, "List")) {
+        } else if (is_kw(p, next, "List")) {
             // Es declaración de lista: tipo List nombre
             return parse_list_declaration(p);
         }
-    } else if (is_kw(t, "Null") && tok_is(next, TOK_IDENTIFIER) && is_delim(next2, "(")) {
+    } else if (is_kw(p, t, "Null") && tok_is(next, TOK_IDENTIFIER) && is_delim(p, next2, "(")) {
         // Función con retorno Null: Null nombre(
         return parse_function_declaration(p);
     }
@@ -939,12 +856,12 @@ static AstNode *parse_statement(Parser *p) {
     if (decl) return decl;
 
     // Sentencias de control de flujo
-    if (is_kw(t,"If"))    return parse_if(p);
-    if (is_kw(t,"While")) return parse_while(p);
-    if (is_kw(t,"For"))   return parse_for_stmt(p);
-    if (is_kw(t,"Return"))return parse_return(p);
-    if (is_kw(t,"Print")) return parse_print(p);
-    if (is_kw(t,"Read"))  return parse_read(p);
+    if (is_kw(p, t,"If"))    return parse_if(p);
+    if (is_kw(p, t,"While")) return parse_while(p);
+    if (is_kw(p, t,"For"))   return parse_for_stmt(p);
+    if (is_kw(p, t,"Return"))return parse_return(p);
+    if (is_kw(p, t,"Print")) return parse_print(p);
+    if (is_kw(p, t,"Read"))  return parse_read(p);
 
     // Sentencia de expresión (asignación, llamada a función, etc.)
     return parse_expr_stmt(p);

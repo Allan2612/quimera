@@ -3,7 +3,7 @@
 #include "ast.h"
 #include "interner.h"
 #include "utils.h"
-#include "diag_errors.h"
+#include "diag.h"
 #include <stdio.h>
 #include <string.h>
 
