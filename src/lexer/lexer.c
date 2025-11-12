@@ -1,7 +1,7 @@
 #include "lexer.h"
 #include "symbol_table.h"
 #include "utils.h"
-#include "diag_errors.h"
+#include "diag.h"
 #include "interner.h"
 #include <stdlib.h>
 #include <string.h>
@@ -161,9 +161,10 @@ static void identify_number(Lexer *lexer, Token *token) {
     if (has_decimal == 1) {
         token->type = TOK_FLOAT;
     } else if (has_decimal > 1) {
-        token->type = TOK_ERROR; // Número con más de un punto decimal
-        ErrorToken t = { .code=1004, .lexeme=lexer->source+start_pos, .length=len, .line=lexer->line, .column=lexer->column };
-        diag_report(ST_LEXER, SV_ERROR, t, NULL);
+        token->type = TOK_ERROR;
+        DiagLocation loc = diag_location_create(lexer->line, lexer->column, len, 
+                                               interner_intern_slice(lexer->I, lexer->source + start_pos, len));
+        diag_error(STAGE_LEXER, 1004, loc, NULL);
     } else {
         token->type = TOK_INTEGER;
     }
@@ -205,8 +206,9 @@ static void identify_literal(Lexer *lexer, Token *token) {
         column++;
     }else{
         token->type = TOK_ERROR;
-        ErrorToken t = { .code=1006, .lexeme=lexer->source+start_pos, .length=i - start_pos, .line=lexer->line, .column=lexer->column };
-        diag_report(ST_LEXER, SV_ERROR, t, NULL);
+        DiagLocation loc = diag_location_create(lexer->line, lexer->column, i - start_pos, 
+                                               interner_intern_slice(lexer->I, lexer->source + start_pos, i - start_pos));
+        diag_error(STAGE_LEXER, 1006, loc, NULL);
         lexer->position = i;
         lexer->line = line;
         lexer->column = column;
@@ -227,8 +229,8 @@ static void identify_literal(Lexer *lexer, Token *token) {
         if (content_len == 0) {
             // Carácter vacío: ''
             token->type = TOK_ERROR;
-            ErrorToken t = { .code=1007, .lexeme=lexer->source+start_pos, .length=len, .line=lexer->line, .column=lexer->column };
-            diag_report(ST_LEXER, SV_ERROR, t, NULL);
+            DiagLocation loc = diag_location_create(lexer->line, lexer->column, len, token->lexeme);
+            diag_error(STAGE_LEXER, 1007, loc, NULL);
         } else if (content_len == 1) {
             // Carácter normal: 'a'
             token->type = TOK_CHAR;
@@ -242,14 +244,14 @@ static void identify_literal(Lexer *lexer, Token *token) {
             } else {
                 // Secuencia de escape inválida
                 token->type = TOK_ERROR;
-                ErrorToken t = { .code=1008, .lexeme=lexer->source+start_pos, .length=len, .line=lexer->line, .column=lexer->column };
-                diag_report(ST_LEXER, SV_ERROR, t, NULL);
+                DiagLocation loc = diag_location_create(lexer->line, lexer->column, len, token->lexeme);
+                diag_error(STAGE_LEXER, 1008, loc, NULL);
             }
         } else {
             // Carácter con más de un carácter (sin ser escape válido)
             token->type = TOK_ERROR;
-            ErrorToken t = { .code=1005, .lexeme=lexer->source+start_pos, .length=len, .line=lexer->line, .column=lexer->column };
-            diag_report(ST_LEXER, SV_ERROR, t, NULL);
+            DiagLocation loc = diag_location_create(lexer->line, lexer->column, len, token->lexeme);
+            diag_error(STAGE_LEXER, 1005, loc, NULL);
         }
     } else {
         // Es un string
@@ -371,8 +373,8 @@ static void identify_delimiter(Lexer *lexer, Token *token) {
         token->type = TOK_ERROR;
         
         // Reportar error de carácter no válido
-        ErrorToken t = { .code=1001, .lexeme=lexer->source+start_pos, .length=1, .line=lexer->line, .column=lexer->column };
-        diag_report(ST_LEXER, SV_ERROR, t, NULL);
+        DiagLocation loc = diag_location_create(lexer->line, lexer->column, 1, token->lexeme);
+        diag_error(STAGE_LEXER, 1001, loc, NULL);
     }
 
     lexer->position = start_pos + len;
@@ -397,15 +399,21 @@ static void skip_line_comment(Lexer *lexer) {
 
 // Función para saltar comentarios de bloque
 static void skip_block_comment(Lexer *lexer) {
+    size_t start_line = lexer->line;
+    size_t start_column = lexer->column;
+    
     lexer->position += 2;
     lexer->column += 2;
+    
     while (lexer->position < lexer->length) {
-        if (lexer->position + 1 < lexer->length && lexer->source[lexer->position] == '*' && lexer->source[lexer->position + 1] == '/') {
+        if (lexer->position + 1 < lexer->length && 
+            lexer->source[lexer->position] == '*' && 
+            lexer->source[lexer->position + 1] == '/') {
             lexer->position += 2;
-            // actualizamos columna respecto al cierre '*/'
             lexer->column += 2;
-            break;
+            return; // Comentario cerrado correctamente
         }
+        
         if (lexer->source[lexer->position] == '\n') {
             lexer->line++;
             lexer->column = 1;
@@ -414,6 +422,10 @@ static void skip_block_comment(Lexer *lexer) {
         }
         lexer->position++;
     }
+    
+    // Si llegamos aquí, el comentario no se cerró
+    DiagLocation loc = diag_location_simple(start_line, start_column);
+    diag_error(STAGE_LEXER, 1003, loc, NULL);
 }
 
 //------------Main Lexer Functions----------------
@@ -468,14 +480,14 @@ void tokenize(Lexer *lexer, TokenList *list) {
         } else {
             // Caracteres no reconocidos: crear token de error y avanzar 1 posición
             token.type = TOK_ERROR;
-            token.lexeme = lexer->source + lexer->position;
+            token.lexeme = interner_intern_slice(lexer->I, lexer->source + lexer->position, 1);
             token.length = 1;
             token.line = lexer->line;
             token.column = lexer->column;
             
             // Reportar error de carácter no válido
-            ErrorToken t = { .code=1001, .lexeme=lexer->source+lexer->position, .length=1, .line=lexer->line, .column=lexer->column };
-            diag_report(ST_LEXER, SV_ERROR, t, NULL);
+            DiagLocation loc = diag_location_create(lexer->line, lexer->column, 1, token.lexeme);
+            diag_error(STAGE_LEXER, 1001, loc, NULL);
 
             // Avanzar manualmente al siguiente carácter
             lexer->position++;

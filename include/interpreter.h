@@ -3,7 +3,6 @@
 
 #include "ast.h"
 #include "interner.h"
-#include "diag_errors.h"
 #include <stdbool.h>
 
 #ifdef __cplusplus

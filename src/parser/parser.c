@@ -1,6 +1,6 @@
 #include "parser.h"
 #include "symbol_table.h"
-#include "diag_errors.h"
+#include "diag.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -120,27 +120,17 @@ static SrcSpan span_range(const Token *start, const Token *end) {
     return s;
 }
 
-/* Diagnóstico integrado con diag_errors */
+/* Diagnóstico integrado con nuevo sistema */
 static void err(Parser *p, const Token *t, const char *msg) {
     ++p->error_count;
+    
     if (t) {
-        ErrorToken et = {
-            .code = 2001, // Error genérico de parser
-            .lexeme = t->lexeme,
-            .length = t->length,
-            .line = t->line,
-            .column = t->column
-        };
-        diag_report(ST_PARSER, SV_ERROR, et, msg);
+        DiagLocation loc = diag_location_create(t->line, t->column, t->length, t->lexeme);
+        diag_error(STAGE_PARSER, 2002, loc, msg); // Token inesperado como código genérico
     } else {
-        ErrorToken et = {
-            .code = 2002,
-            .lexeme = "",
-            .length = 0,
-            .line = 0,
-            .column = 0
-        };
-        diag_report(ST_PARSER, SV_ERROR, et, msg);
+        // Error sin token específico
+        DiagLocation loc = diag_location_simple(0, 0);
+        diag_error(STAGE_PARSER, 2002, loc, msg);
     }
 }
 

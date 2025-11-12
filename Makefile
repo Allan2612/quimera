@@ -161,3 +161,30 @@ $(BIN_DIR)/apps: | $(BIN_DIR)
 # Dependencias de headers
 DEPS := $(OBJS_LIB:.o=.d) $(OBJ_MAIN:.o=.d) $(TEST_OBJS:.o=.d) $(APPS_OBJS:.o=.d) $(UNITY_OBJ:.o=.d)
 -include $(DEPS)
+
+
+#================================================================================================================================
+.PHONY: cli run-lex
+
+cli: CFLAGS := $(DEBUG_CFLAGS)
+cli: $(APP)
+	@echo "CLI listo: $(APP)"
+
+# Uso: make run-lex FILE=tmp/ide_input.qmr
+run-lex: CFLAGS := $(DEBUG_CFLAGS)
+run-lex: cli
+	@if [ -z "$(FILE)" ]; then \
+		echo "Uso: make run-lex FILE=path/algo.qmr"; exit 2; \
+	fi
+	@echo ">> Ejecutando: $(APP) --lex \"$(FILE)\""
+	@$(APP) --lex "$(FILE)"
+
+# Uso: make run-lex-dump FILE=tmp/ide_input.qmr
+.PHONY: run-lex-dump
+run-lex-dump: CFLAGS := $(DEBUG_CFLAGS)
+run-lex-dump: cli
+	@if [ -z "$(FILE)" ]; then \
+		echo "Uso: make run-lex-dump FILE=path/algo.qmr"; exit 2; \
+	fi
+	@echo ">> Ejecutando: $(APP) --lex \"$(FILE)\" --dump"
+	@$(APP) --lex "$(FILE)" --dump

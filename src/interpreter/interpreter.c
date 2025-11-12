@@ -1,5 +1,6 @@
 #include "interpreter.h"
 #include "symbol_table.h"
+#include "diag.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -224,6 +225,11 @@ Value value_add(const Value *a, const Value *b) {
                 return value_string(result);
             }
             break;
+        case VAL_NULL:
+        case VAL_BOOLEAN: 
+        case VAL_LIST:
+            // Operaciones no soportadas para estos tipos
+            break;
     }
     
     // Error: operación inválida
@@ -293,8 +299,8 @@ Value value_divide(const Value *a, const Value *b, SrcSpan span) {
     }
 
     if (is_zero) {
-        ErrorToken tok = { 4001, NULL, 0, span.line_start, span.col_start };
-        diag_report(ST_RUNTIME, SV_WARNING, tok, "División por cero");
+        DiagLocation loc = diag_location_simple(span.line_start, span.col_start);
+        diag_error(STAGE_RUNTIME, 4001, loc, NULL);
         return value_integer(0);
     }
 
@@ -323,8 +329,8 @@ Value value_modulo(const Value *a, const Value *b, SrcSpan span) {
     }
 
     if (b->as.integer == 0) {
-        ErrorToken tok = { 4001, NULL, 0, span.line_start, span.col_start };
-        diag_report(ST_RUNTIME, SV_WARNING, tok, "Módulo por cero");
+        DiagLocation loc = diag_location_simple(span.line_start, span.col_start);
+        diag_error(STAGE_RUNTIME, 4001, loc, "Módulo por cero");
         return value_integer(0);
     }
 
@@ -349,41 +355,53 @@ Value value_not(const Value *val) {
 }
 
 void value_print(const Value *val) {
+    char buffer[512];
+    
     switch (val->type) {
         case VAL_NULL:
-            printf("Null");
+            output_program_value("null", "null");
             break;
         case VAL_INTEGER:
-            printf("%ld", val->as.integer);
+            snprintf(buffer, sizeof(buffer), "%ld", val->as.integer);
+            output_program_value(buffer, "integer");
             break;
         case VAL_FLOAT:
-            printf("%g", val->as.float_val);
+            snprintf(buffer, sizeof(buffer), "%g", val->as.float_val);
+            output_program_value(buffer, "float");
             break;
         case VAL_STRING: {
             const char *str = val->as.string;
             size_t len = strlen(str);
             // Si la string tiene comillas, quitarlas para la impresión
             if (len >= 2 && str[0] == '"' && str[len-1] == '"') {
-                // Imprimir sin las comillas
-                for (size_t i = 1; i < len - 1; i++) {
-                    putchar(str[i]);
+                // Crear una copia sin las comillas
+                char *unquoted = malloc(len - 1);
+                if (unquoted) {
+                    memcpy(unquoted, str + 1, len - 2);
+                    unquoted[len - 2] = '\0';
+                    output_program_value(unquoted, "string");
+                    free(unquoted);
+                } else {
+                    output_program_value(str, "string");
                 }
             } else {
-                printf("%s", str);
+                output_program_value(str, "string");
             }
             break;
         }
         case VAL_BOOLEAN:
-            printf("%s", val->as.boolean ? "True" : "False");
+            output_program_value(val->as.boolean ? "true" : "false", "boolean");
             break;
         case VAL_CHAR:
-            printf("%c", val->as.char_val);
+            snprintf(buffer, sizeof(buffer), "%c", val->as.char_val);
+            output_program_value(buffer, "char");
             break;
         case VAL_LIST:
-            printf("[List with %zu elements]", val->as.list.count);
+            snprintf(buffer, sizeof(buffer), "[List with %zu elements]", val->as.list.count);
+            output_program_value(buffer, "list");
             break;
         default:
-            printf("<unknown>");
+            output_program_value("<unknown>", "unknown");
             break;
     }
 }
@@ -526,8 +544,8 @@ static EvalResult eval_identifier(InterpreterContext *ctx, AstNode *node) {
     
     Value *val = scope_lookup(ctx->current_scope, interned_name);
     if (!val) {
-        ErrorToken tok = { 3001, name, strlen(name), node->span.line_start, node->span.col_start };
-        diag_report(ST_SEMANTIC, SV_ERROR, tok, NULL);
+        DiagLocation loc = diag_location_create(node->span.line_start, node->span.col_start, strlen(name), name);
+        diag_error(STAGE_SEMANTIC, 3001, loc, NULL);
         result.value = value_null();
         result.flow = FLOW_ERROR;
         ctx->has_error = true;
@@ -615,8 +633,8 @@ static EvalResult eval_binary_op(InterpreterContext *ctx, AstNode *node) {
             int cmp = value_compare(left, right);
             if (cmp == -2) {
                 // Tipos incomparables
-                ErrorToken tok = { 3002, NULL, 0, node->span.line_start, node->span.col_start };
-                diag_report(ST_SEMANTIC, SV_WARNING, tok, "Comparación entre tipos incompatibles");
+                DiagLocation loc = diag_location_simple(node->span.line_start, node->span.col_start);
+                diag_warning(STAGE_SEMANTIC, 3003, loc, "Comparación entre tipos incompatibles");
                 result.value = value_boolean(false);
             } else {
                 bool comparison_result = false;
@@ -681,8 +699,8 @@ static EvalResult eval_assignment(InterpreterContext *ctx, AstNode *node) {
     if (node->as.assign.op != OP_ASSIGN) {
         Value *current = scope_lookup(ctx->current_scope, interned_name);
         if (!current) {
-            ErrorToken tok = { 3001, name, strlen(name), node->span.line_start, node->span.col_start };
-            diag_report(ST_SEMANTIC, SV_ERROR, tok, NULL);
+            DiagLocation loc = diag_location_create(node->span.line_start, node->span.col_start, strlen(name), name);
+            diag_error(STAGE_SEMANTIC, 3001, loc, NULL);
             result.flow = FLOW_ERROR;
             return result;
         }
@@ -700,8 +718,8 @@ static EvalResult eval_assignment(InterpreterContext *ctx, AstNode *node) {
     }
     
     if (!scope_assign(ctx->current_scope, interned_name, final_value)) {
-        ErrorToken tok = { 3001, name, strlen(name), node->span.line_start, node->span.col_start };
-        diag_report(ST_SEMANTIC, SV_ERROR, tok, NULL);
+        DiagLocation loc = diag_location_create(node->span.line_start, node->span.col_start, strlen(name), name);
+        diag_error(STAGE_SEMANTIC, 3001, loc, NULL);
         result.flow = FLOW_ERROR;
     } else {
         result.value = final_value;
@@ -731,15 +749,70 @@ static EvalResult eval_var_decl(InterpreterContext *ctx, AstNode *node) {
 static EvalResult eval_print(InterpreterContext *ctx, AstNode *node) {
     EvalResult result = { .flow = FLOW_NORMAL };
     
+    // Para múltiples valores, crear un string concatenado
+    char output_buffer[2048] = "";
+    size_t buffer_pos = 0;
+    
     for (size_t i = 0; i < node->as.print.exprs.count; i++) {
-        if (i > 0) printf(" ");
+        if (i > 0 && buffer_pos < sizeof(output_buffer) - 1) {
+            output_buffer[buffer_pos++] = ' ';
+        }
         
         EvalResult expr_result = interpret_node(ctx, node->as.print.exprs.data[i]);
         if (expr_result.flow != FLOW_NORMAL) return expr_result;
         
-        value_print(&expr_result.value);
+        // Convertir el valor a string y agregarlo al buffer
+        char value_str[512];
+        const Value *val = &expr_result.value;
+        
+        switch (val->type) {
+            case VAL_NULL:
+                strncpy(value_str, "null", sizeof(value_str) - 1);
+                break;
+            case VAL_INTEGER:
+                snprintf(value_str, sizeof(value_str), "%ld", val->as.integer);
+                break;
+            case VAL_FLOAT:
+                snprintf(value_str, sizeof(value_str), "%g", val->as.float_val);
+                break;
+            case VAL_STRING: {
+                const char *str = val->as.string;
+                size_t len = strlen(str);
+                if (len >= 2 && str[0] == '"' && str[len-1] == '"') {
+                    // Remover comillas
+                    strncpy(value_str, str + 1, len - 2);
+                    value_str[len - 2] = '\0';
+                } else {
+                    strncpy(value_str, str, sizeof(value_str) - 1);
+                }
+                break;
+            }
+            case VAL_BOOLEAN:
+                strncpy(value_str, val->as.boolean ? "true" : "false", sizeof(value_str) - 1);
+                break;
+            case VAL_CHAR:
+                snprintf(value_str, sizeof(value_str), "%c", val->as.char_val);
+                break;
+            case VAL_LIST:
+                snprintf(value_str, sizeof(value_str), "[List with %zu elements]", val->as.list.count);
+                break;
+            default:
+                strncpy(value_str, "<unknown>", sizeof(value_str) - 1);
+                break;
+        }
+        value_str[sizeof(value_str) - 1] = '\0';
+        
+        // Agregar al buffer
+        size_t value_len = strlen(value_str);
+        if (buffer_pos + value_len < sizeof(output_buffer) - 1) {
+            strncpy(output_buffer + buffer_pos, value_str, value_len);
+            buffer_pos += value_len;
+        }
     }
-    printf("\n");
+    output_buffer[buffer_pos] = '\0';
+    
+    // Enviar toda la línea como salida del programa
+    output_program_text(output_buffer);
     
     result.value = value_null();
     return result;
