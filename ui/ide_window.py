@@ -14,7 +14,7 @@ from ui.code_editor import CodeEditor
 # ================================================================================================================================
 #  CONFIGURACIÓN (EDITAS SOLO ESTO)
 # ================================================================================================================================
-QUIMERA_PROJECT_DIR = r"C:\Users\alanv\Desktop\Allan\Trabajos\Paradigmas\Quimera_Lenguage"  # Carpeta del proyecto Quimera (donde está el Makefile)
+QUIMERA_PROJECT_DIR = r"C:\Users\alanv\Desktop\Allan\Trabajos\Paradigmas\Nueva carpeta\Quimera_Lenguage"  # Carpeta del proyecto Quimera (donde está el Makefile)
 MSYS_ROOT = r"C:\msys64"                                                                    # Ruta raíz de MSYS2 
 # ================================================================================================================================
 def _win_to_msys(path: str) -> str:
@@ -59,22 +59,26 @@ class IDEWindow(QMainWindow):
         # Layout principal
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
-        layout = QVBoxLayout()
-        central_widget.setLayout(layout)
 
-        splitter = QSplitter(Qt.Vertical)
-        splitter.addWidget(self.editor)
-        splitter.addWidget(self.output)
-        splitter.setSizes([400, 200])
-        layout.addWidget(splitter)
+        # Layout principal (QVBoxLayout) que tendrá dos secciones
+        main_layout = QVBoxLayout()  
+        central_widget.setLayout(main_layout)
 
-        buttons_layout = QHBoxLayout()
-        buttons_layout.addStretch()
+        # Primera sección: QHBoxLayout para editor a la izquierda y output a la derecha
+        hbox_layout = QHBoxLayout()  # QHBoxLayout para horizontal (input y output)
+        hbox_layout.addWidget(self.editor)
+        hbox_layout.addWidget(self.output)
+        main_layout.addLayout(hbox_layout)
+
+        # Segunda sección: QHBoxLayout para los botones (alineados horizontalmente)
+        buttons_layout = QHBoxLayout()  # QHBoxLayout para los botones horizontales
         buttons_layout.addWidget(self.compile_button)
         buttons_layout.addWidget(self.run_button)
         buttons_layout.addWidget(self.clear_code_button)
         buttons_layout.addWidget(self.clear_output_button)
-        layout.addLayout(buttons_layout)
+        
+        # Agregar el layout de botones al final
+        main_layout.addLayout(buttons_layout)
 
         self.statusBar().showMessage("Listo")
 
@@ -284,23 +288,21 @@ class IDEWindow(QMainWindow):
             self.statusBar().showMessage("Tests fallaron")
 
     def _run(self):
-        # === Ruta del proyecto (editas QUIMERA_PROJECT_DIR arriba del archivo) ===
         proj = QUIMERA_PROJECT_DIR
         if not proj or not os.path.isdir(proj):
-            self._safe_log(f"❌ Carpeta de proyecto inválida: {proj}\n")
+            self._safe_log(f"Carpeta de proyecto inválida: {proj}\n")
             return
 
-        # === 1) Guardar el código del editor en tmp/ide_input.qmr dentro del repo C ===
+        # 1) Guardar el texto del editor en tmp/ide_input.qmr dentro del repo C
         tmp_dir = os.path.join(proj, "tmp")
         os.makedirs(tmp_dir, exist_ok=True)
         src_path = os.path.join(tmp_dir, "ide_input.qmr")
         with open(src_path, "w", encoding="utf-8") as f:
             f.write(self.editor.toPlainText())
 
-        # === 2) Ejecutar make (Windows + MSYS2) ===
-        # Requisitos: MSYS_ROOT = r"C:\msys64" y Makefile con targets: cli, run-lex-dump
+        # 2) Ejecutar make (Windows + MSYS2)
         if not MSYS_ROOT or not os.path.isdir(MSYS_ROOT):
-            self._safe_log("❌ MSYS2 no configurado. Define MSYS_ROOT = r\"C:\\msys64\".\n")
+            self._safe_log("MSYS2 no configurado. Define MSYS_ROOT = r\"C:\\msys64\".\n")
             return
 
         bash = os.path.join(MSYS_ROOT, "usr", "bin", "bash.exe")
@@ -322,34 +324,42 @@ class IDEWindow(QMainWindow):
         msys_src  = to_msys(src_path)
 
         # 2a) Compilar CLI (asegura bin/Quimera actualizado)
-        self._safe_log("🔧 Compilando CLI…\n")
         cp1 = subprocess.run(
             [bash, "-lc", f'cd "{msys_proj}" && make cli'],
             capture_output=True, text=True, encoding="utf-8", env=env
         )
-        if cp1.stdout: self._safe_log(cp1.stdout.rstrip() + "\n")
-        if cp1.stderr: self._safe_log(cp1.stderr.rstrip() + "\n")
         if cp1.returncode != 0:
-            self._safe_log(f"❌ Falló la construcción del CLI (code={cp1.returncode})\n")
+            self._safe_log(f"Falló la construcción del CLI (code={cp1.returncode})\n")
             self.statusBar().showMessage("CLI falló al compilar")
             return
 
         # 2b) Ejecutar lexer con dump de tokens
-        self._safe_log(f"🐧 Ejecutando: make run-lex-dump FILE={msys_src}\n")
         cp2 = subprocess.run(
             [bash, "-lc", f'cd "{msys_proj}" && make run-lex-dump FILE="{msys_src}"'],
             capture_output=True, text=True, encoding="utf-8", env=env
         )
 
-        # === 3) Mostrar salida y estado ===
-        if cp2.stdout: self._safe_log(cp2.stdout.rstrip() + "\n")
-        if cp2.stderr: self._safe_log(cp2.stderr.rstrip() + "\n")
+        # === 3) Filtrar y mostrar solo errores importantes o el output del programa ===
+        errors_found = False
 
-        if cp2.returncode == 0:
-            self._safe_log("✅ Ejecutado (lexer + dump)\n")
+        # Filtrar errores semánticos/interpretación
+        for line in cp2.stdout.splitlines():
+            if "error" in line.lower():  # Buscamos la palabra "error" en cualquier lugar
+                self._safe_log(line.strip())  # Solo muestra el error
+                errors_found = True
+
+        # Mostrar el output generado por el programa (lo que hizo el `print()`)
+        output_found = False
+        for line in cp2.stdout.splitlines():
+            if "error" not in line.lower():  # Ignorar las líneas de error
+                self._safe_log(line.strip())  # Mostrar el output real del programa
+                output_found = True
+
+        # Si no se encontró error, muestra "Ejecución exitosa"
+        if cp2.returncode == 0 and not errors_found and output_found:
             self.statusBar().showMessage("Ejecución OK")
         else:
-            self._safe_log(f"❌ Ejecución con errores (code={cp2.returncode})\n")
+            self._safe_log(f"Ejecución con errores (code={cp2.returncode})\n")
             self.statusBar().showMessage("Ejecución con errores")
 
 
@@ -362,8 +372,6 @@ class IDEWindow(QMainWindow):
             self.statusBar().showMessage("Código limpiado")
 
     def _clear_output(self):
-        if QMessageBox.question(self, "Confirmar", "¿Deseas limpiar la salida?",
-                                QMessageBox.Yes | QMessageBox.No) == QMessageBox.Yes:
             self.output.clear()
             self.statusBar().showMessage("Salida limpiada")
 
