@@ -526,10 +526,16 @@ TypeInfo validate_function_call(SemanticAnalyzer *analyzer, Symbol *function, As
         return type_create_basic(TYPE_UNKNOWN, "unknown");
     }
     
-    // Por ahora, implementación básica
-    // TODO: Verificar número y tipos de argumentos
+    // TODO: Implementar validación completa de argumentos
+    // Por ahora, validación básica: el tipo de retorno está en element_type
+    SemanticType return_type = function->type.element_type;
     
-    return function->type;
+    // Analizar argumentos (para detectar errores en las expresiones)
+    for (size_t i = 0; i < args->count; i++) {
+        analyze_node(analyzer, args->data[i]);
+    }
+    
+    return type_create_basic(return_type, type_to_string(type_create_basic(return_type, "")));
 }
 
 /* ========== Análisis de nodos AST ========== */
@@ -975,9 +981,14 @@ static void analyze_return_statement(SemanticAnalyzer *analyzer, AstNode *node) 
         return;
     }
     
-    // Marcar que el ámbito tiene return
-    if (analyzer->current_scope->is_function_scope) {
-        analyzer->current_scope->has_return = true;
+    // Buscar el scope de función hacia arriba en la jerarquía
+    AnalyzerScope *func_scope = analyzer->current_scope;
+    while (func_scope && !func_scope->is_function_scope) {
+        func_scope = func_scope->parent;
+    }
+    
+    if (func_scope && func_scope->is_function_scope) {
+        func_scope->has_return = true;
     }
     
     TypeInfo return_type = analyzer->current_function_return_type;
@@ -1003,10 +1014,14 @@ static void analyze_return_statement(SemanticAnalyzer *analyzer, AstNode *node) 
 }
 
 static void analyze_print_statement(SemanticAnalyzer *analyzer, AstNode *node) {
-    // Analizar todas las expresiones a imprimir
-    for (size_t i = 0; i < node->as.print.exprs.count; i++) {
-        analyze_node(analyzer, node->as.print.exprs.data[i]);
+    // Según Sintaxis.md: Print ( <expresion> ) ; - solo UNA expresión
+    if (node->as.print.exprs.count != 1) {
+        semantic_error(analyzer, node->span, "Print requiere exactamente una expresión");
+        return;
     }
+    
+    // Analizar la única expresión
+    analyze_node(analyzer, node->as.print.exprs.data[0]);
 }
 
 static void analyze_read_statement(SemanticAnalyzer *analyzer, AstNode *node) {

@@ -780,15 +780,16 @@ static AstNode *parse_print(Parser *p) {
     AstNode *pr = make_node(p, AST_PRINT, kw);
     AstList *xs = &pr->as.print.exprs;
     
+    // Según Sintaxis.md: Print ( <expresion> ) ; - solo UNA expresión
     if (!is_delim(p, at(p), ")")) {
-        do {
-            AstNode *e = parse_expression(p);
-            if (e) list_push(p, xs, e);
-        } while (is_delim(p, at(p), ",") && advance(p));
+        AstNode *e = parse_expression(p);
+        if (e) list_push(p, xs, e);
+    } else {
+        err(p, at(p), "Print requiere una expresión");
     }
     
     expect_delim(p, ")");
-    if (is_delim(p, at(p), ";")) advance(p);
+    expect_delim(p, ";");  // Semicolon obligatorio según documentación
     return pr;
 }
 
