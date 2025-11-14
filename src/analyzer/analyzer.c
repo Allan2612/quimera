@@ -151,6 +151,17 @@ TypeInfo type_from_name(SemanticAnalyzer *analyzer, const char *type_name) {
         return type_create_basic(TYPE_UNKNOWN, "unknown");
     }
     
+    // Verificar si es un tipo compuesto (Array: o List:)
+    if (strncmp(type_name, "Array:", 6) == 0) {
+        const char *element_type_name = type_name + 6; // saltar "Array:"
+        TypeInfo element_type = type_from_name(analyzer, element_type_name);
+        return type_create_array(element_type.base_type, 0); // tamaño se determina más tarde
+    } else if (strncmp(type_name, "List:", 5) == 0) {
+        const char *element_type_name = type_name + 5; // saltar "List:"
+        TypeInfo element_type = type_from_name(analyzer, element_type_name);
+        return type_create_list(element_type.base_type);
+    }
+    
     // Comparar con símbolos internados para eficiencia
     if (type_name == analyzer->symbols->T_Integer) {
         return type_create_basic(TYPE_INTEGER, type_name);
@@ -162,6 +173,8 @@ TypeInfo type_from_name(SemanticAnalyzer *analyzer, const char *type_name) {
         return type_create_basic(TYPE_CHAR, type_name);
     } else if (type_name == analyzer->symbols->T_Boolean) {
         return type_create_basic(TYPE_BOOLEAN, type_name);
+    } else if (type_name == analyzer->symbols->T_List) {
+        return type_create_basic(TYPE_LIST, type_name);
     }
     
     // Fallback: comparación por string
@@ -175,6 +188,8 @@ TypeInfo type_from_name(SemanticAnalyzer *analyzer, const char *type_name) {
         return type_create_basic(TYPE_CHAR, type_name);
     } else if (strcmp(type_name, "Boolean") == 0) {
         return type_create_basic(TYPE_BOOLEAN, type_name);
+    } else if (strcmp(type_name, "List") == 0) {
+        return type_create_basic(TYPE_LIST, type_name);
     } else if (strcmp(type_name, "Null") == 0) {
         return type_create_basic(TYPE_NULL, type_name);
     }

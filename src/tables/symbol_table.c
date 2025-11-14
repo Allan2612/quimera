@@ -3,12 +3,12 @@
 // Reservadas (sin And/Or que son operadores lógicos)
 const char * const ReservedWords[] = {
     "Char","String","Integer","Float","Boolean", "Null","True","False",
-    "If","ElseIf","Else","For","While","Print","Read","Return","End","Not"
+    "If","ElseIf","Else","For","While","Print","Read","Return","End","Not","List"
 };
 const size_t ReservedWordCount = sizeof(ReservedWords)/sizeof(ReservedWords[0]);
 
 // Tipos
-const char * const BuiltinTypes[] = { "Char","String","Integer","Float","Boolean" };
+const char * const BuiltinTypes[] = { "Char","String","Integer","Float","Boolean","List" };
 const size_t BuiltinTypeCount = sizeof(BuiltinTypes)/sizeof(BuiltinTypes[0]);
 
 // Delimitadores (mejor tokens individuales para el futuro lexer)

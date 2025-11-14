@@ -68,7 +68,8 @@ static int is_type(Parser *p, const Token *t) {
             t_interned == p->syms->T_Float ||
             t_interned == p->syms->T_String ||
             t_interned == p->syms->T_Boolean ||
-            t_interned == p->syms->T_Char);
+            t_interned == p->syms->T_Char ||
+            t_interned == p->syms->T_List);
 }
 
 static SrcSpan span_of_tok(const Token *t) {
@@ -308,17 +309,43 @@ static AstNode *parse_precedence(Parser *p, int min_prec);
 
 /* Funciones auxiliares para parsear listas */
 static AstNode *parse_list_elements(Parser *p) {
-    AstNode *list = make_node(p, AST_BLOCK, at(p)); // Usar AST_BLOCK como contenedor temporal
-    expect_delim(p, "{");
+    const Token *start_tok = at(p);
+    AstNode *list = make_node(p, AST_BLOCK, start_tok); // Usar AST_BLOCK como contenedor temporal
+    
+    if (!expect_delim(p, "{")) {
+        return ast_new(p->arena, AST_ERROR, span_of_tok(start_tok));
+    }
     
     if (!is_delim(p, at(p), "}")) {
         do {
             AstNode *expr = parse_expression(p);
-            if (expr) list_push(p, &list->as.block.stmts, expr);
-        } while (is_delim(p, at(p), ",") && advance(p));
+            if (expr) {
+                list_push(p, &list->as.block.stmts, expr);
+            } else {
+                // Error en la expresión, crear nodo de error pero continuar
+                AstNode *error_node = ast_new(p->arena, AST_ERROR, span_of_tok(at(p)));
+                error_node->as.error.msg = "Error en elemento de lista";
+                list_push(p, &list->as.block.stmts, error_node);
+            }
+            
+            // Si hay coma, avanzar y continuar
+            if (is_delim(p, at(p), ",")) {
+                advance(p);
+                // Si después de coma viene }, es un trailing comma (permitido)
+                if (is_delim(p, at(p), "}")) {
+                    break;
+                }
+            } else {
+                // No hay coma, debería ser el final
+                break;
+            }
+        } while (!is_eof(p) && !is_delim(p, at(p), "}"));
     }
     
-    expect_delim(p, "}");
+    if (!expect_delim(p, "}")) {
+        return ast_new(p->arena, AST_ERROR, span_of_tok(start_tok));
+    }
+    
     return list;
 }
 
@@ -607,15 +634,49 @@ static AstNode *parse_array_declaration(Parser *p) {
     expect_delim(p, "]");
     
     AstNode *array_decl = make_node_span(p, AST_VAR_DECL, type_tok, name_tok);
-    array_decl->as.var_decl.type_name = intern_token_lexeme(p, type_tok); // String internada
-    array_decl->as.var_decl.name = intern_token_lexeme(p, name_tok);      // String internada
-    array_decl->as.var_decl.init = size_expr; // Almacenar tamaño en init
     
-    // Lista de elementos inicial opcional
-    if (is_delim(p, at(p), "{")) {
-        AstNode *elements = parse_list_elements(p);
-        // En una implementación más completa, almacenarías esto en otro campo
+    // Crear string "Array:<tipo>" para indicar que es un arreglo
+    const char *element_type = intern_token_lexeme(p, type_tok);
+    char *array_type_name = malloc(strlen(element_type) + 7); // "Array:" + tipo + '\0'
+    if (array_type_name) {
+        sprintf(array_type_name, "Array:%s", element_type);
+        array_decl->as.var_decl.type_name = interner_intern_cstr(p->interner, array_type_name);
+        free(array_type_name);
+    } else {
+        array_decl->as.var_decl.type_name = element_type; // fallback
     }
+    
+    array_decl->as.var_decl.name = intern_token_lexeme(p, name_tok);
+    
+    // Inicialización: puede ser tamaño solo o lista de elementos
+    if (is_delim(p, at(p), "=")) {
+        advance(p); // consumir '='
+        if (is_delim(p, at(p), "{")) {
+            // Inicialización con lista de elementos: Integer x[5] = {1,2,3,4,5};
+            AstNode *elements = parse_list_elements(p);
+            if (elements) {
+                // Crear un nodo de inicialización que contenga tanto el tamaño como los elementos
+                AstNode *init = make_node_span(p, AST_BLOCK, type_tok, name_tok);
+                list_push(p, &init->as.block.stmts, size_expr); // primer elemento es el tamaño
+                list_push(p, &init->as.block.stmts, elements);  // segundo elemento es la lista
+                array_decl->as.var_decl.init = init;
+            } else {
+                array_decl->as.var_decl.init = NULL;
+            }
+        } else {
+            // Error: después de = en arreglo debería venir {
+            err(p, at(p), "Se esperaba '{' después de '=' en inicialización de arreglo");
+            array_decl->as.var_decl.init = NULL;
+        }
+    } else {
+        // Solo declaración con tamaño: Integer x[5];
+        // No poner size_expr como init, el tamaño se maneja separadamente
+        array_decl->as.var_decl.init = NULL;
+    }
+    
+    // El tamaño se debe almacenar en algún lugar. Por simplicidad temporal,
+    // voy a ponerlo en un comentario que el analyzer puede extraer
+    // TODO: Agregar campo específico para el tamaño en el AST
     
     expect_delim(p, ";");
     return array_decl;
@@ -627,13 +688,32 @@ static AstNode *parse_list_declaration(Parser *p) {
     const Token *name_tok = expect_identifier(p);
     
     AstNode *list_decl = make_node_span(p, AST_VAR_DECL, type_tok, name_tok);
-    list_decl->as.var_decl.type_name = p->syms->T_List; // Usar string internada para "List"
-    list_decl->as.var_decl.name = intern_token_lexeme(p, name_tok); // String internada
+    
+    // Crear un tipo compuesto que indique "Lista de <tipo>"
+    const char *element_type = intern_token_lexeme(p, type_tok);
+    
+    // Crear string "List:<tipo>" para indicar que es una lista
+    char *list_type_name = malloc(strlen(element_type) + 6); // "List:" + tipo + '\0'
+    if (list_type_name) {
+        sprintf(list_type_name, "List:%s", element_type);
+        list_decl->as.var_decl.type_name = interner_intern_cstr(p->interner, list_type_name);
+        free(list_type_name);
+    } else {
+        list_decl->as.var_decl.type_name = p->syms->T_List; // fallback
+    }
+    
+    list_decl->as.var_decl.name = intern_token_lexeme(p, name_tok);
     list_decl->as.var_decl.init = NULL;
     
     // Lista de elementos inicial opcional
-    if (is_delim(p, at(p), "{")) {
-        list_decl->as.var_decl.init = parse_list_elements(p);
+    if (is_delim(p, at(p), "=")) {
+        advance(p); // consumir '='
+        if (is_delim(p, at(p), "{")) {
+            list_decl->as.var_decl.init = parse_list_elements(p);
+        } else {
+            // Error: después de = debería venir {
+            err(p, at(p), "Se esperaba '{' después de '=' en inicialización de lista");
+        }
     }
     
     expect_delim(p, ";");
@@ -949,12 +1029,16 @@ static AstNode *parse_declaration(Parser *p) {
     const Token *t = at(p);
     const Token *next = peek(p, 1);
     const Token *next2 = peek(p, 2);
+    const Token *next3 = peek(p, 3);
     
     if (!t) return NULL;
     
     // Detectar tipo de declaración
     if (is_type(p, t)) {
-        if (tok_is(next, TOK_IDENTIFIER)) {
+        if (is_kw(p, next, "List") && tok_is(next2, TOK_IDENTIFIER)) {
+            // Es declaración de lista: tipo List nombre
+            return parse_list_declaration(p);
+        } else if (tok_is(next, TOK_IDENTIFIER)) {
             if (is_delim(p, next2, "(")) {
                 // Es declaración de función: tipo nombre(
                 return parse_function_declaration(p);
@@ -965,9 +1049,6 @@ static AstNode *parse_declaration(Parser *p) {
                 // Es declaración de variable: tipo nombre
                 return parse_var_declaration(p);
             }
-        } else if (is_kw(p, next, "List")) {
-            // Es declaración de lista: tipo List nombre
-            return parse_list_declaration(p);
         }
     } else if (is_kw(p, t, "Null") && tok_is(next, TOK_IDENTIFIER) && is_delim(p, next2, "(")) {
         // Función con retorno Null: Null nombre(
