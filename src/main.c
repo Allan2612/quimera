@@ -114,11 +114,15 @@ int main(int argc, char *argv[]) {
 
     AstNode *program = parse_program(&parser);
     
-    if (!program || parser.error_count > 0) {
-        output_program_error("Error durante el análisis sintáctico");
+    if (!program) {
+        output_program_error("Error crítico durante el análisis sintáctico");
         free(source);
         goto cleanup;
     }
+
+    // Continuar al análisis semántico incluso si hubo errores de parser
+    // para detectar tantos errores como sea posible
+    bool has_parser_errors = (parser.error_count > 0);
 
     // Análisis semántico
     SemanticAnalyzer analyzer;
@@ -126,8 +130,14 @@ int main(int argc, char *argv[]) {
     
     bool semantic_ok = analyze_program(&analyzer, program);
     
-    if (!semantic_ok || analyzer.error_count > 0) {
-        output_program_error("Error durante el análisis semántico");
+    if (!semantic_ok || analyzer.error_count > 0 || has_parser_errors) {
+        if (has_parser_errors && analyzer.error_count > 0) {
+            output_program_error("Errores durante análisis sintáctico y semántico");
+        } else if (has_parser_errors) {
+            output_program_error("Error durante el análisis sintáctico");
+        } else {
+            output_program_error("Error durante el análisis semántico");
+        }
         analyzer_destroy(&analyzer);
         free(source);
         goto cleanup;

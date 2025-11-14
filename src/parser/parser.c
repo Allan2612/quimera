@@ -389,6 +389,15 @@ static AstNode *parse_prefix(Parser *p) {
         return lit;
     }
 
+    /* Manejo específico de tokens de error del lexer */
+    if (tok_is(t, TOK_ERROR)) {
+        DiagLocation loc = diag_location_create(t->line, t->column, t->length, t->lexeme);
+        diag_error(STAGE_PARSER, 2003, loc, "Token de error del lexer - recuperando análisis");
+        ++p->error_count;
+        advance(p);
+        return ast_new(p->arena, AST_ERROR, span_of_tok(t));
+    }
+
     err(p, t, "Token no válido al inicio de expresión");
     advance(p);
     return ast_new(p->arena, AST_ERROR, span_of_tok(t));

@@ -1,2 +1,6 @@
-Integer x = "cadena sin cerrar";
-Print(x);
+Integer x = 15;
+Integer y = 12
+
+If (x>y)
+  Print("Hola")
+End
