@@ -875,6 +875,78 @@ static EvalResult eval_while(InterpreterContext *ctx, AstNode *node) {
     return result;
 }
 
+static EvalResult eval_for(InterpreterContext *ctx, AstNode *node) {
+    EvalResult result = { .flow = FLOW_NORMAL, .value = value_null() };
+    
+    // Crear nuevo scope para el for
+    Scope *new_scope = scope_new(ctx->current_scope);
+    if (!new_scope) {
+        result.flow = FLOW_ERROR;
+        return result;
+    }
+    
+    Scope *prev_scope = ctx->current_scope;
+    ctx->current_scope = new_scope;
+    
+    // Ejecutar inicialización
+    if (node->as.for_stmt.init) {
+        EvalResult init_result = interpret_node(ctx, node->as.for_stmt.init);
+        if (init_result.flow != FLOW_NORMAL) {
+            ctx->current_scope = prev_scope;
+            scope_destroy(new_scope);
+            return init_result;
+        }
+    }
+    
+    // Ciclo principal: condición -> cuerpo -> actualización
+    while (true) {
+        // Evaluar condición
+        if (node->as.for_stmt.cond) {
+            EvalResult cond_result = interpret_node(ctx, node->as.for_stmt.cond);
+            if (cond_result.flow != FLOW_NORMAL) {
+                ctx->current_scope = prev_scope;
+                scope_destroy(new_scope);
+                return cond_result;
+            }
+            
+            if (!value_is_truthy(&cond_result.value)) {
+                break;
+            }
+        }
+        
+        // Ejecutar cuerpo
+        if (node->as.for_stmt.body) {
+            EvalResult body_result = interpret_node(ctx, node->as.for_stmt.body);
+            if (body_result.flow == FLOW_BREAK) {
+                break;
+            }
+            if (body_result.flow == FLOW_CONTINUE) {
+                // Continuar a la actualización
+            } else if (body_result.flow != FLOW_NORMAL) {
+                ctx->current_scope = prev_scope;
+                scope_destroy(new_scope);
+                return body_result;
+            }
+        }
+        
+        // Ejecutar actualización
+        if (node->as.for_stmt.step) {
+            EvalResult step_result = interpret_node(ctx, node->as.for_stmt.step);
+            if (step_result.flow != FLOW_NORMAL) {
+                ctx->current_scope = prev_scope;
+                scope_destroy(new_scope);
+                return step_result;
+            }
+        }
+    }
+    
+    // Restaurar scope
+    ctx->current_scope = prev_scope;
+    scope_destroy(new_scope);
+    
+    return result;
+}
+
 static EvalResult eval_block(InterpreterContext *ctx, AstNode *node) {
     EvalResult result = { .flow = FLOW_NORMAL, .value = value_null() };
     
@@ -944,6 +1016,8 @@ EvalResult interpret_node(InterpreterContext *ctx, AstNode *node) {
             return eval_if(ctx, node);
         case AST_WHILE:
             return eval_while(ctx, node);
+        case AST_FOR:
+            return eval_for(ctx, node);
         case AST_BLOCK:
             return eval_block(ctx, node);
         case AST_RETURN:
@@ -954,7 +1028,6 @@ EvalResult interpret_node(InterpreterContext *ctx, AstNode *node) {
         // TODO: Implementar casos faltantes
         case AST_FUNC_DECL:
         case AST_PARAM:
-        case AST_FOR:
         case AST_READ:
         case AST_CALL:
         case AST_INDEX:
