@@ -113,39 +113,75 @@ static void err(Parser *p, const Token *t, const char *msg) {
 
 /* Expectativas de tokens */
 static Token *expect_kw(Parser *p, const char *kw) {
-    Token *t = at(p);
-    if (is_kw(p, t, kw)) return advance(p);
-    printf("{\"severity\":\"error\", \"code\":2001, \"message\":\"se esperaba palabra clave '%s', se encontró '%.*s'\", \"line\":%d}\n", 
-           kw, (int)t->length, t->lexeme, (int)t->line);
-    p->error_count++;
+    Token *t = (Token*)at(p);
+    if (t && is_kw(p, t, kw)) return (Token*)advance(p);
+    
+    // Usar sistema de diagnósticos unificado
+    if (t) {
+        DiagLocation loc = diag_location_create(t->line, t->column, t->length, t->lexeme);
+        char msg[256];
+        snprintf(msg, sizeof(msg), "Se esperaba palabra clave '%s'", kw);
+        diag_error(STAGE_PARSER, 2009, loc, msg);
+    } else {
+        DiagLocation loc = diag_location_simple(0, 0);
+        char msg[256];
+        snprintf(msg, sizeof(msg), "Se esperaba palabra clave '%s' pero se encontró EOF", kw);
+        diag_error(STAGE_PARSER, 2009, loc, msg);
+    }
+    ++p->error_count;
     return NULL;
 }
 
 static Token *expect_delim(Parser *p, const char *d) {
-    Token *t = at(p);
-    if (is_delim(p, t, d)) return advance(p);
-    printf("{\"severity\":\"error\", \"code\":2002, \"message\":\"se esperaba delimitador '%s', se encontró '%.*s'\", \"line\":%d}\n",
-           d, (int)t->length, t->lexeme, (int)t->line);
-    p->error_count++;
+    Token *t = (Token*)at(p);
+    if (t && is_delim(p, t, d)) return (Token*)advance(p);
+    
+    // Usar sistema de diagnósticos unificado
+    if (t) {
+        DiagLocation loc = diag_location_create(t->line, t->column, t->length, t->lexeme);
+        char msg[256];
+        snprintf(msg, sizeof(msg), "Se esperaba delimitador '%s'", d);
+        diag_error(STAGE_PARSER, 2010, loc, msg);
+    } else {
+        DiagLocation loc = diag_location_simple(0, 0);
+        char msg[256];
+        snprintf(msg, sizeof(msg), "Se esperaba delimitador '%s' pero se encontró EOF", d);
+        diag_error(STAGE_PARSER, 2010, loc, msg);
+    }
+    ++p->error_count;
     return NULL;
 }
 
 static const Token *expect_type(Parser *p) {
     const Token *t = at(p);
-    if (is_type(p, t)) return advance(p);
-    printf("{\"severity\":\"error\", \"code\":2003, \"message\":\"se esperaba tipo, se encontró '%.*s'\", \"line\":%d}\n",
-           (int)t->length, t->lexeme, (int)t->line);
-    p->error_count++;
-    return t;
+    if (t && is_type(p, t)) return advance(p);
+    
+    // Usar sistema de diagnósticos unificado
+    if (t) {
+        DiagLocation loc = diag_location_create(t->line, t->column, t->length, t->lexeme);
+        diag_error(STAGE_PARSER, 2008, loc, "Se esperaba tipo");
+    } else {
+        DiagLocation loc = diag_location_simple(0, 0);
+        diag_error(STAGE_PARSER, 2008, loc, "Se esperaba tipo pero se encontró EOF");
+    }
+    ++p->error_count;
+    return NULL;
 }
 
 static const Token *expect_identifier(Parser *p) {
     const Token *t = at(p);
-    if (tok_is(t, TOK_IDENTIFIER)) return advance(p);
-    printf("{\"severity\":\"error\", \"code\":2004, \"message\":\"se esperaba identificador, se encontró '%.*s'\", \"line\":%d}\n",
-           (int)t->length, t->lexeme, (int)t->line);
-    p->error_count++;
-    return t;
+    if (t && tok_is(t, TOK_IDENTIFIER)) return advance(p);
+    
+    // Usar sistema de diagnósticos unificado
+    if (t) {
+        DiagLocation loc = diag_location_create(t->line, t->column, t->length, t->lexeme);
+        diag_error(STAGE_PARSER, 2006, loc, "Se esperaba identificador");
+    } else {
+        DiagLocation loc = diag_location_simple(0, 0);
+        diag_error(STAGE_PARSER, 2006, loc, "Se esperaba identificador pero se encontró EOF");
+    }
+    ++p->error_count;
+    return NULL;
 }
 
 /* ========== AST helpers ========== */
@@ -710,55 +746,92 @@ static AstNode *parse_read(Parser *p) {
 
 static AstNode *parse_if(Parser *p) {
     const Token *kw = expect_kw(p, "If");
-    expect_delim(p, "(");
+    if (!kw) return NULL; // Si falla expect_kw, devolver NULL
+    
+    if (!expect_delim(p, "(")) return NULL; // Si falla, devolver NULL
     
     AstNode *n = make_node(p, AST_IF, kw);
     n->as.if_stmt.cond = parse_expression(p);
     
-    expect_delim(p, ")");
+    if (!expect_delim(p, ")")) return NULL; // Si falla, devolver NULL
+    
     n->as.if_stmt.then_blk = parse_block(p);
     
     // ElseIf*
-    while (is_kw(p, at(p), "ElseIf")) {
+    while (!is_eof(p) && is_kw(p, at(p), "ElseIf")) {
         const Token *ek = advance(p);
-        expect_delim(p, "(");
+        if (!expect_delim(p, "(")) break; // Salir del bucle si falla
         
         AstNode *pair = make_node(p, AST_IF, ek);
         pair->as.if_stmt.cond = parse_expression(p);
         
-        expect_delim(p, ")");
+        if (!expect_delim(p, ")")) break; // Salir del bucle si falla
         pair->as.if_stmt.then_blk = parse_block(p);
         
         list_push(p, &n->as.if_stmt.elseifs, pair);
     }
     
     // Else?
-    if (is_kw(p, at(p),"Else")) {
+    if (!is_eof(p) && is_kw(p, at(p),"Else")) {
         advance(p);
         n->as.if_stmt.else_blk = parse_block(p);
     }
     
-    expect_kw(p, "End");
+    // Intentar encontrar End, pero si falla, no colapsar
+    if (!is_eof(p) && is_kw(p, at(p), "End")) {
+        advance(p); // Consumir End si está disponible
+    } else {
+        // End faltante - reportar error pero continuar
+        const Token *current = at(p);
+        if (current) {
+            DiagLocation loc = diag_location_create(current->line, current->column, current->length, current->lexeme);
+            diag_error(STAGE_PARSER, 2009, loc, "Se esperaba 'End' para cerrar bloque If");
+        } else {
+            DiagLocation loc = diag_location_simple(0, 0);
+            diag_error(STAGE_PARSER, 2009, loc, "Se esperaba 'End' para cerrar bloque If pero se alcanzó EOF");
+        }
+        ++p->error_count;
+    }
+    
     return n;
 }
 
 static AstNode *parse_while(Parser *p) {
     const Token *kw = expect_kw(p, "While");
-    expect_delim(p, "(");
+    if (!kw) return NULL;
+    
+    if (!expect_delim(p, "(")) return NULL;
     
     AstNode *n = make_node(p, AST_WHILE, kw);
     n->as.while_stmt.cond = parse_expression(p);
     
-    expect_delim(p, ")");
+    if (!expect_delim(p, ")")) return NULL;
     n->as.while_stmt.body = parse_block(p);
     
-    expect_kw(p, "End");
+    // Intentar encontrar End, pero si falla, no colapsar
+    if (!is_eof(p) && is_kw(p, at(p), "End")) {
+        advance(p); // Consumir End si está disponible
+    } else {
+        // End faltante - reportar error pero continuar
+        const Token *current = at(p);
+        if (current) {
+            DiagLocation loc = diag_location_create(current->line, current->column, current->length, current->lexeme);
+            diag_error(STAGE_PARSER, 2009, loc, "Se esperaba 'End' para cerrar bloque While");
+        } else {
+            DiagLocation loc = diag_location_simple(0, 0);
+            diag_error(STAGE_PARSER, 2009, loc, "Se esperaba 'End' para cerrar bloque While pero se alcanzó EOF");
+        }
+        ++p->error_count;
+    }
+    
     return n;
 }
 
 static AstNode *parse_for_stmt(Parser *p) {
     const Token *kw = expect_kw(p, "For");
-    expect_delim(p, "(");
+    if (!kw) return NULL;
+    
+    if (!expect_delim(p, "(")) return NULL;
     
     AstNode *n = make_node(p, AST_FOR, kw);
     
@@ -772,23 +845,65 @@ static AstNode *parse_for_stmt(Parser *p) {
         n->as.for_stmt.init = parse_expression(p);
     }
     
-    expect_delim(p, ":");
+    if (!expect_delim(p, ":")) return NULL;
     
     // Condición
     n->as.for_stmt.cond = parse_expression(p);
     
-    expect_delim(p, ":");
+    if (!expect_delim(p, ":")) return NULL;
     
     // Actualización
     n->as.for_stmt.step = parse_expression(p);
     
-    expect_delim(p, ")");
+    if (!expect_delim(p, ")")) return NULL;
     
     // Cuerpo
     n->as.for_stmt.body = parse_block(p);
     
-    expect_kw(p, "End");
+    // Intentar encontrar End, pero si falla, no colapsar
+    if (!is_eof(p) && is_kw(p, at(p), "End")) {
+        advance(p); // Consumir End si está disponible
+    } else {
+        // End faltante - reportar error pero continuar
+        const Token *current = at(p);
+        if (current) {
+            DiagLocation loc = diag_location_create(current->line, current->column, current->length, current->lexeme);
+            diag_error(STAGE_PARSER, 2009, loc, "Se esperaba 'End' para cerrar bloque For");
+        } else {
+            DiagLocation loc = diag_location_simple(0, 0);
+            diag_error(STAGE_PARSER, 2009, loc, "Se esperaba 'End' para cerrar bloque For pero se alcanzó EOF");
+        }
+        ++p->error_count;
+    }
+    
     return n;
+}
+
+/* Función para recuperación en modo pánico */
+static void panic_mode_recovery(Parser *p) {
+    if (is_eof(p)) return;
+    
+    const Token *current = at(p);
+    if (current) {
+        DiagLocation loc = diag_location_create(current->line, current->column, current->length, current->lexeme);
+        diag_error(STAGE_PARSER, 2002, loc, "Token inesperado - entrando en modo pánico");
+    }
+    
+    // Avanzar hasta encontrar un punto de sincronización seguro
+    while (!is_eof(p)) {
+        const Token *t = at(p);
+        if (!t) break;
+        
+        // Puntos de sincronización: palabras clave que inician sentencias
+        if (is_kw(p, t, "If") || is_kw(p, t, "While") || is_kw(p, t, "For") || 
+            is_kw(p, t, "Print") || is_kw(p, t, "Read") || is_kw(p, t, "Return") ||
+            is_kw(p, t, "End") || is_kw(p, t, "Else") || is_kw(p, t, "ElseIf") ||
+            is_type(p, t) || // tipos para declaraciones
+            is_delim(p, t, ";")) { // punto y coma
+            break;
+        }
+        advance(p);
+    }
 }
 
 /* Bloque: consume sentencias hasta encontrar 'End' o palabras que cierren nivel superior */
@@ -797,14 +912,24 @@ AstNode *parse_block(Parser *p) {
     AstNode *blk = make_node(p, AST_BLOCK, t0);
     
     for (;;) {
-        if (is_eof(p)) break;
-        if (is_kw(p, at(p),"End") || is_kw(p, at(p),"Else") || is_kw(p, at(p),"ElseIf")) break;
+        if (is_eof(p)) {
+            // Advertir si llegamos a EOF sin encontrar End
+            DiagLocation loc = diag_location_simple(0, 0);
+            diag_warning(STAGE_PARSER, 2001, loc, "Bloque sin cerrar: se alcanzó EOF sin encontrar 'End'");
+            break;
+        }
+        
+        const Token *current = at(p);
+        if (current && (is_kw(p, current,"End") || is_kw(p, current,"Else") || is_kw(p, current,"ElseIf"))) {
+            break;
+        }
         
         AstNode *s = parse_statement(p);
         if (s) {
             list_push(p, &blk->as.block.stmts, s);
         } else {
-            advance(p); // modo pánico simple
+            // Modo pánico mejorado: avanzar hasta encontrar punto de sincronización
+            panic_mode_recovery(p);
         }
     }
     
@@ -873,11 +998,19 @@ AstNode *parse_program(Parser *p) {
     AstNode *prg = make_node(p, AST_PROGRAM, t0);
     
     while (!is_eof(p)) {
+        const Token *before = at(p); // Guardar posición antes del parse
         AstNode *node = parse_statement(p);
+        
         if (node) {
             list_push(p, &prg->as.program.decls, node);
         } else {
-            advance(p); // Modo pánico
+            // Modo pánico mejorado para el programa principal
+            panic_mode_recovery(p);
+            
+            // Si seguimos en el mismo lugar después de la recuperación, avanzar forzadamente
+            if (!is_eof(p) && at(p) == before) {
+                advance(p); // Evitar bucle infinito
+            }
         }
     }
     

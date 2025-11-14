@@ -343,7 +343,7 @@ void test_parser_complete_program(void) {
 /* ============= Tests de Manejo de Errores ============= */
 
 void test_parser_error_handling_missing_semicolon(void) {
-    const char *source = "Integer x = 5 Print(x);"; // Falta ; después de la declaración
+    const char *source = "Integer x = 5 Print(x)"; // Falta ; después de la declaración
     AstArena *arena;
     Interner *interner;
     Interned *syms;
