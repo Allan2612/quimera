@@ -671,6 +671,60 @@ static TypeInfo analyze_assignment(SemanticAnalyzer *analyzer, AstNode *node) {
 }
 
 static TypeInfo analyze_call(SemanticAnalyzer *analyzer, AstNode *node) {
+    // Verificar si es un método especial antes de analizar el callee
+    if (node->as.call.callee->kind == AST_IDENT) {
+        const char *func_name = node->as.call.callee->as.ident.lexeme;
+        
+        // Manejar métodos especiales de lista
+        if (strcmp(func_name, "size") == 0) {
+            // y.size() - primer argumento debe ser una lista
+            if (node->as.call.args.count >= 1) {
+                TypeInfo base_type = analyze_node(analyzer, node->as.call.args.data[0]);
+                if (base_type.base_type == TYPE_LIST) {
+                    return type_create_basic(TYPE_INTEGER, "Integer");
+                } else {
+                    semantic_error(analyzer, node->span, "size() solo puede aplicarse a listas");
+                    return type_create_basic(TYPE_UNKNOWN, "unknown");
+                }
+            }
+            return type_create_basic(TYPE_UNKNOWN, "unknown");
+        } else if (strcmp(func_name, "append") == 0) {
+            // lista.append(elemento) - primer arg lista, segundo elemento
+            if (node->as.call.args.count >= 2) {
+                TypeInfo list_type = analyze_node(analyzer, node->as.call.args.data[0]);
+                TypeInfo element_type = analyze_node(analyzer, node->as.call.args.data[1]);
+                
+                if (list_type.base_type == TYPE_LIST) {
+                    TypeInfo expected_element = type_create_basic(list_type.element_type, "");
+                    validate_assignment(analyzer, expected_element, element_type, node->span);
+                    return type_create_basic(TYPE_VOID, "Void");
+                } else {
+                    semantic_error(analyzer, node->span, "append() solo puede aplicarse a listas");
+                    return type_create_basic(TYPE_UNKNOWN, "unknown");
+                }
+            }
+            return type_create_basic(TYPE_UNKNOWN, "unknown");
+        } else if (strcmp(func_name, "remove") == 0) {
+            // lista.remove(index) - primer arg lista, segundo índice
+            if (node->as.call.args.count >= 2) {
+                TypeInfo list_type = analyze_node(analyzer, node->as.call.args.data[0]);
+                TypeInfo index_type = analyze_node(analyzer, node->as.call.args.data[1]);
+                
+                if (list_type.base_type == TYPE_LIST) {
+                    if (index_type.base_type != TYPE_INTEGER) {
+                        semantic_error(analyzer, node->span, "remove() requiere un índice entero");
+                    }
+                    return type_create_basic(TYPE_VOID, "Void");
+                } else {
+                    semantic_error(analyzer, node->span, "remove() solo puede aplicarse a listas");
+                    return type_create_basic(TYPE_UNKNOWN, "unknown");
+                }
+            }
+            return type_create_basic(TYPE_UNKNOWN, "unknown");
+        }
+    }
+    
+    // Si no es un método especial, analizar normalmente
     TypeInfo callee_type = analyze_node(analyzer, node->as.call.callee);
     
     // Analizar argumentos
@@ -680,6 +734,8 @@ static TypeInfo analyze_call(SemanticAnalyzer *analyzer, AstNode *node) {
     
     if (node->as.call.callee->kind == AST_IDENT) {
         const char *func_name = node->as.call.callee->as.ident.lexeme;
+        
+        // Función normal
         Symbol *func_symbol = symbol_lookup(analyzer, func_name);
         
         if (func_symbol) {
@@ -729,8 +785,40 @@ static void analyze_var_declaration(SemanticAnalyzer *analyzer, AstNode *node) {
     
     // Analizar inicialización si existe
     if (node->as.var_decl.init) {
-        TypeInfo init_type = analyze_node(analyzer, node->as.var_decl.init);
-        validate_assignment(analyzer, var_type, init_type, node->span);
+        // Manejo especial para arreglos y listas con inicialización
+        if (var_type.base_type == TYPE_ARRAY || var_type.base_type == TYPE_LIST) {
+            // Para arreglos y listas, el init es un AST_BLOCK con los elementos
+            if (node->as.var_decl.init->kind == AST_BLOCK) {
+                AstList *elements = &node->as.var_decl.init->as.block.stmts;
+                
+                // Para arreglos: primer elemento es tamaño, segundo es lista de elementos
+                // Para listas: solo lista de elementos
+                AstList *actual_elements = elements;
+                if (var_type.base_type == TYPE_ARRAY && elements->count >= 2) {
+                    actual_elements = &elements->data[1]->as.block.stmts;
+                }
+                
+                // Validar que todos los elementos son del tipo correcto
+                for (size_t i = 0; i < actual_elements->count; i++) {
+                    TypeInfo element_type = analyze_node(analyzer, actual_elements->data[i]);
+                    
+                    // Crear tipo esperado para el elemento
+                    TypeInfo expected_element_type = type_create_basic(var_type.element_type, "");
+                    
+                    validate_assignment(analyzer, expected_element_type, element_type, 
+                                       actual_elements->data[i]->span);
+                }
+                
+                // La inicialización es válida
+            } else {
+                TypeInfo init_type = analyze_node(analyzer, node->as.var_decl.init);
+                validate_assignment(analyzer, var_type, init_type, node->span);
+            }
+        } else {
+            // Inicialización normal para tipos simples
+            TypeInfo init_type = analyze_node(analyzer, node->as.var_decl.init);
+            validate_assignment(analyzer, var_type, init_type, node->span);
+        }
         
         // Marcar como inicializada
         Symbol *symbol = symbol_lookup_current_scope(analyzer, name);

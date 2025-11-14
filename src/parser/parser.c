@@ -648,24 +648,17 @@ static AstNode *parse_array_declaration(Parser *p) {
     
     array_decl->as.var_decl.name = intern_token_lexeme(p, name_tok);
     
-    // Inicialización: puede ser tamaño solo o lista de elementos
-    if (is_delim(p, at(p), "=")) {
-        advance(p); // consumir '='
-        if (is_delim(p, at(p), "{")) {
-            // Inicialización con lista de elementos: Integer x[5] = {1,2,3,4,5};
-            AstNode *elements = parse_list_elements(p);
-            if (elements) {
-                // Crear un nodo de inicialización que contenga tanto el tamaño como los elementos
-                AstNode *init = make_node_span(p, AST_BLOCK, type_tok, name_tok);
-                list_push(p, &init->as.block.stmts, size_expr); // primer elemento es el tamaño
-                list_push(p, &init->as.block.stmts, elements);  // segundo elemento es la lista
-                array_decl->as.var_decl.init = init;
-            } else {
-                array_decl->as.var_decl.init = NULL;
-            }
+    // Inicialización opcional con lista de elementos (sin =)
+    // Sintaxis: Integer x[5] {1,2,3,4,5};
+    if (is_delim(p, at(p), "{")) {
+        AstNode *elements = parse_list_elements(p);
+        if (elements) {
+            // Crear un nodo de inicialización que contenga tanto el tamaño como los elementos
+            AstNode *init = make_node_span(p, AST_BLOCK, type_tok, name_tok);
+            list_push(p, &init->as.block.stmts, size_expr); // primer elemento es el tamaño
+            list_push(p, &init->as.block.stmts, elements);  // segundo elemento es la lista
+            array_decl->as.var_decl.init = init;
         } else {
-            // Error: después de = en arreglo debería venir {
-            err(p, at(p), "Se esperaba '{' después de '=' en inicialización de arreglo");
             array_decl->as.var_decl.init = NULL;
         }
     } else {
@@ -673,10 +666,6 @@ static AstNode *parse_array_declaration(Parser *p) {
         // No poner size_expr como init, el tamaño se maneja separadamente
         array_decl->as.var_decl.init = NULL;
     }
-    
-    // El tamaño se debe almacenar en algún lugar. Por simplicidad temporal,
-    // voy a ponerlo en un comentario que el analyzer puede extraer
-    // TODO: Agregar campo específico para el tamaño en el AST
     
     expect_delim(p, ";");
     return array_decl;
@@ -705,15 +694,10 @@ static AstNode *parse_list_declaration(Parser *p) {
     list_decl->as.var_decl.name = intern_token_lexeme(p, name_tok);
     list_decl->as.var_decl.init = NULL;
     
-    // Lista de elementos inicial opcional
-    if (is_delim(p, at(p), "=")) {
-        advance(p); // consumir '='
-        if (is_delim(p, at(p), "{")) {
-            list_decl->as.var_decl.init = parse_list_elements(p);
-        } else {
-            // Error: después de = debería venir {
-            err(p, at(p), "Se esperaba '{' después de '=' en inicialización de lista");
-        }
+    // Lista de elementos inicial opcional (sin =)
+    // Sintaxis: Integer List y {1,2,3};
+    if (is_delim(p, at(p), "{")) {
+        list_decl->as.var_decl.init = parse_list_elements(p);
     }
     
     expect_delim(p, ";");
