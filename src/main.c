@@ -1,5 +1,6 @@
 #include "lexer.h"
 #include "parser.h"
+#include "analyzer.h"
 #include "interpreter.h"
 #include "diag.h"
 #include <stdio.h>
@@ -119,6 +120,19 @@ int main(int argc, char *argv[]) {
         goto cleanup;
     }
 
+    // Análisis semántico
+    SemanticAnalyzer analyzer;
+    analyzer_init(&analyzer, arena, &interner, &symbols);
+    
+    bool semantic_ok = analyze_program(&analyzer, program);
+    
+    if (!semantic_ok || analyzer.error_count > 0) {
+        output_program_error("Error durante el análisis semántico");
+        analyzer_destroy(&analyzer);
+        free(source);
+        goto cleanup;
+    }
+
     // Interpretar
     InterpreterContext ctx;
     interpreter_init(&ctx, arena, &interner, &symbols);
@@ -129,6 +143,8 @@ int main(int argc, char *argv[]) {
         output_program_error("Error durante la ejecución del programa");
     }
 
+    // Limpiar analizador
+    analyzer_destroy(&analyzer);
     interpreter_destroy(&ctx);
 
 cleanup:
