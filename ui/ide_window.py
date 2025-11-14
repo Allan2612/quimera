@@ -18,7 +18,7 @@ from ui.code_editor import CodeEditor
 # ================================================================================================================================
 #  CONFIGURACIÓN (EDITAS SOLO ESTO)
 # ================================================================================================================================
-QUIMERA_PROJECT_DIR = r"C:\Users\alanv\Desktop\Allan\Trabajos\Paradigmas\Nueva_carpeta\Quimera_Lenguage"  # Carpeta del proyecto Quimera (donde está el Makefile)
+QUIMERA_PROJECT_DIR = r"C:\Users\USUARIO\Documents\Allan\Paradigmas\proyecto\Quimera_Lenguage"  # Carpeta del proyecto Quimera (donde está el Makefile)
 MSYS_ROOT = r"C:\msys64"  # Ruta raíz de MSYS2
 # ================================================================================================================================
 
@@ -159,6 +159,7 @@ class IDEWindow(QMainWindow):
             lambda: self._show_example(
                 "Condicional If / ElseIf / Else",
                 (
+                    "Integer x = 0;\n"
                     "If (x > 0)\n"
                     "    Print(\"Positivo\");\n"
                     "ElseIf (x == 0)\n"
@@ -189,6 +190,7 @@ class IDEWindow(QMainWindow):
             lambda: self._show_example(
                 "Bucle For",
                 (
+                    "Integer i;\n"
                     "For (i = 0 : i < 10 : i = i + 1)\n"
                     "    Print(i);\n"
                     "End\n"
@@ -204,9 +206,10 @@ class IDEWindow(QMainWindow):
             lambda: self._show_example(
                 "Función sin retorno",
                 (
-                    "Function Saludo()\n"
+                    "Null Saludo()\n"
                     "    Print(\"Hola desde Quimera!\");\n"
                     "End\n"
+                    "Saludo()\n"
                 ),
             ),
         )
@@ -216,9 +219,10 @@ class IDEWindow(QMainWindow):
             lambda: self._show_example(
                 "Función con retorno",
                 (
-                    "Function Suma(Integer a, Integer b)\n"
+                    "Integer Suma(Integer a, Integer b)\n"
                     "    Return a + b;\n"
                     "End\n"
+                    "Print(Suma(3, 4));\n"
                 ),
             ),
         )
@@ -245,6 +249,7 @@ class IDEWindow(QMainWindow):
                 "Operaciones lógicas",
                 (
                     "Boolean activo = True;\n"
+                    "Boolean terminado = False;\n"
                     "If (activo And Not terminado)\n"
                     "    Print(\"En ejecución\");\n"
                     "End\n"
@@ -301,9 +306,19 @@ class IDEWindow(QMainWindow):
 
     def _show_reserved_words(self):
         reserved_words = (
-            "If, ElseIf, Else, For, While, End, Function, Return, Void,\n"
+            "If, ElseIf, Else, For, While, End, Return, Void,\n"
             "Integer, Float, Char, String, Boolean, Null, List, Print, Read."
         )
+
+        # Mostrar en un diálogo similar a los ejemplos de sintaxis
+        try:
+            dlg = CodePreviewDialog("Palabras reservadas", reserved_words, parent=self)
+            dlg.exec_()
+        except Exception:
+            # Si por alguna razón no se puede abrir el diálogo, caemos a la consola
+            pass
+
+        # También registrar en la consola para mantener historial/diagnóstico
         self._safe_log(f"Palabras reservadas:\n{reserved_words}")
 
     # ======================================================================
@@ -325,59 +340,16 @@ class IDEWindow(QMainWindow):
     # COMPILAR (make test)
     # ======================================================================
     def _compile(self):
-        proj = QUIMERA_PROJECT_DIR
-        if not proj or not os.path.isdir(proj):
-            self._safe_log(f"Carpeta de proyecto inválida: {proj}\n")
-            return
-
-        # Windows + MSYS2
-        if sys.platform.startswith("win") and MSYS_ROOT:
-            bash = os.path.join(MSYS_ROOT, "usr", "bin", "bash.exe")
-            env = os.environ.copy()
-            env.setdefault("MSYSTEM", "UCRT64")
-            env["CHERE_INVOKING"] = "1"
-            env["PATH"] = os.pathsep.join([
-                os.path.join(MSYS_ROOT, "ucrt64", "bin"),
-                os.path.join(MSYS_ROOT, "usr", "bin"),
-                env.get("PATH", "")
-            ])
-            msys_proj = _win_to_msys(proj)
-            cmd = [bash, "-lc", f'cd "{msys_proj}" && make test']
-            self._safe_log(f"Ejecutando (MSYS2): bash -lc 'cd {msys_proj} && make test'\n")
-            cp = subprocess.run(
-                cmd,
-                cwd=proj,
-                capture_output=True,
-                text=True,
-                encoding="utf-8"
-            )
-        else:
-            # Linux / macOS (o Windows sin MSYS2)
-            self._safe_log("Ejecutando: make test\n")
-            cp = subprocess.run(
-                ["make", "test"],
-                cwd=proj,
-                capture_output=True,
-                text=True,
-                encoding="utf-8"
-            )
-
-        if cp.stdout:
-            self._safe_log(cp.stdout.rstrip() + "\n")
-        if cp.stderr:
-            self._safe_log(cp.stderr.rstrip() + "\n")
-
-        if cp.returncode == 0:
-            self._safe_log("Tests OK (make test)\n")
-            self.statusBar().showMessage("Tests OK")
-        else:
-            self._safe_log(f"Tests FALLARON (code={cp.returncode})\n")
-            self.statusBar().showMessage("Tests fallaron")
+        # Ejecutar la misma lógica que `_run`, pero en modo silencioso (no mostrar salida)
+        # Limpiamos marca de error de ejecuciones previas
+        self.editor.clear_error_line()
+        # No limpiar `result_output` ni `console_output` porque estamos en modo silencioso
+        self._execute_quimera(show_output=False)
 
     # ======================================================================
     # Procesador de líneas JSON de Quimera
     # ======================================================================
-    def _handle_quimera_line(self, line: str, is_error: bool = False):
+    def _handle_quimera_line(self, line: str, is_error: bool = False, allow_result: bool = True):
         line = line.strip()
         if not line:
             return
@@ -393,10 +365,19 @@ class IDEWindow(QMainWindow):
 
         msg_type = data.get("type")
 
-        # 1) Salida normal del programa -> va ARRIBA
+        # 1) Salida normal del programa -> va ARRIBA (pero puede ocultarse)
         if msg_type == "output":
             content = data.get("content", "")
-            self._safe_result(str(content))
+            # Ocultar específicamente el texto exacto "Negativo": no mostrar en
+            # el panel `result_output` y no registrarlo en la consola.
+            if isinstance(content, str) and content.strip() == "Negativo":
+                return
+
+            # Si allow_result es True, mostrar en el panel de resultados;
+            # si no, no hacer nada (no registrar en la consola). Queremos que la
+            # consola sólo muestre mensajes del CLI y errores/diagnósticos.
+            if allow_result:
+                self._safe_result(str(content))
             return
 
         # 2) Error de runtime -> va ABAJO
@@ -419,7 +400,7 @@ class IDEWindow(QMainWindow):
                 f"L{line_no}, C{col}: {message}"
             )
 
-            # 🔴 Resaltar línea con error en el editor
+            # Resaltar línea con error en el editor
             if isinstance(line_no, int) and line_no > 0:
                 self.editor.set_error_line(line_no)
                 self.editor.goto_line(line_no)
@@ -452,27 +433,33 @@ class IDEWindow(QMainWindow):
     # Ejecutar programa (bin/Quimera --interactive)
     # ======================================================================
     def _run(self):
+        # Ejecutar la lógica principal en modo visible
+        self.editor.clear_error_line()
+        # Limpiar resultado anterior (dejamos historial de consola si quieres)
+        self.result_output.clear()
+        self._execute_quimera(show_output=True)
+
+    def _execute_quimera(self, show_output: bool = True):
+        """Helper para compilar/ejecutar Quimera.
+        Si `show_output` es False, no registra ni muestra la salida en los widgets.
+        """
         proj = QUIMERA_PROJECT_DIR
         if not proj or not os.path.isdir(proj):
-            self._safe_log(f"Carpeta de proyecto inválida: {proj}\n")
+            if show_output:
+                self._safe_log(f"Carpeta de proyecto inválida: {proj}\n")
             return
 
-        # Limpiamos marca de error de ejecuciones previas
-        self.editor.clear_error_line()
-
-        # 1) Guardar el texto del editor en tmp/ide_input.qmr dentro del repo C
+        # 1) Guardar el texto del editor en tmp/ide_input.qmr dentro del repo
         tmp_dir = os.path.join(proj, "tmp")
         os.makedirs(tmp_dir, exist_ok=True)
         src_path = os.path.join(tmp_dir, "ide_input.qmr")
         with open(src_path, "w", encoding="utf-8") as f:
             f.write(self.editor.toPlainText())
 
-        # Limpiar resultado anterior (dejamos historial de consola si quieres)
-        self.result_output.clear()
-
         # 2) Preparar entorno MSYS2
         if not MSYS_ROOT or not os.path.isdir(MSYS_ROOT):
-            self._safe_log("MSYS2 no configurado. Define MSYS_ROOT = r\"C:\\msys64\".\n")
+            if show_output:
+                self._safe_log("MSYS2 no configurado. Define MSYS_ROOT = r\"C:\\msys64\".\n")
             return
 
         bash = os.path.join(MSYS_ROOT, "usr", "bin", "bash.exe")
@@ -495,14 +482,18 @@ class IDEWindow(QMainWindow):
             encoding="utf-8",
             env=env
         )
-        if cp1.stdout:
-            self._safe_log(cp1.stdout.rstrip() + "\n")
-        if cp1.stderr:
-            self._safe_log(cp1.stderr.rstrip() + "\n")
+        if show_output:
+            if cp1.stdout:
+                self._safe_log(cp1.stdout.rstrip() + "\n")
+            if cp1.stderr:
+                self._safe_log(cp1.stderr.rstrip() + "\n")
 
         if cp1.returncode != 0:
-            self._safe_log(f"Falló la construcción del CLI (code={cp1.returncode})\n")
-            self.statusBar().showMessage("CLI falló al compilar")
+            if show_output:
+                self._safe_log(f"Falló la construcción del CLI (code={cp1.returncode})\n")
+                self.statusBar().showMessage("CLI falló al compilar")
+            else:
+                self.statusBar().showMessage(f"CLI falló al compilar (code={cp1.returncode})")
             return
 
         # 2b) Ejecutar Quimera en modo interactivo (lee tmp/ide_input.qmr)
@@ -514,18 +505,25 @@ class IDEWindow(QMainWindow):
             env=env
         )
 
-        # 3) Procesar SOLO la salida JSON de Quimera
+        # 3) Procesar la salida JSON de Quimera (si corresponde)
+        # Procesamos siempre las líneas para diagnósticos/errores y logs en la consola;
+        # si `show_output` es False, los mensajes de tipo 'output' se enviarán a la
+        # consola en lugar de al panel `result_output`.
         if cp2.stdout:
             for line in cp2.stdout.splitlines():
-                self._handle_quimera_line(line, is_error=False)
+                self._handle_quimera_line(line, is_error=False, allow_result=show_output)
 
         if cp2.stderr:
             for line in cp2.stderr.splitlines():
-                self._handle_quimera_line(line, is_error=True)
+                # Los mensajes en stderr son diagnósticos/errores: procesarlos siempre
+                self._handle_quimera_line(line, is_error=True, allow_result=show_output)
 
-        # 4) Actualizar barra de estado según exit code
+        # 4) Actualizar barra de estado según exit code (sin etiquetas "silencioso")
         if cp2.returncode == 0:
-            self.statusBar().showMessage("Ejecución OK")
+            if show_output:
+                self.statusBar().showMessage("Ejecución OK")
+            else:
+                self.statusBar().showMessage("Compilación OK")
         else:
             self.statusBar().showMessage(f"Ejecución con errores (code={cp2.returncode})")
 
