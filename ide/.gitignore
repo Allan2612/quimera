@@ -1,0 +1,30 @@
+
+# Archivos y directorios que deben ser ignorados por Git
+
+# Entorno virtual
+.venv/
+
+# Archivos de compilación
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+
+# Archivos temporales de editor (PyCharm, VS Code, etc.)
+.idea/
+.vscode/
+
+# Archivos generados por el sistema operativo
+.DS_Store
+Thumbs.db
+
+# Archivos de configuración de herramientas como pyinstaller
+dist/
+build/
+*.spec
+
+# Archivos de log
+*.log
+
+# Archivos de caché de pip
+*.egg-info/
