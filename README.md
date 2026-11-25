@@ -37,7 +37,7 @@ La sintaxis completa está en [`interprete/Docs/Sintaxis.md`](interprete/Docs/Si
 |---|---|
 | [`interprete/`](interprete) | El lenguaje en C11. `make` compila, `make test` corre las pruebas unitarias y `make test-programs` corre los programas de ejemplo con su salida esperada. |
 | [`ide/`](ide) | IDE de escritorio en Python + PyQt5. Usa el intérprete de `../interprete`. |
-| [`web/`](web) | El sitio de [quimera.avt.codes](https://quimera.avt.codes): un editor en el navegador que ejecuta el mismo intérprete compilado a WebAssembly. |
+| [`web/`](web) | El sitio de [quimera.avt.codes](https://quimera.avt.codes): un editor en el navegador que ejecuta el mismo intérprete compilado a WebAssembly, con [documentación](https://quimera.avt.codes/docs/), un [tutorial](https://quimera.avt.codes/aprende/) y [retos](https://quimera.avt.codes/retos/) con revisión automática. |
 
 ## Cómo correrlo
 
@@ -54,7 +54,9 @@ bin/Quimera programa.qmr
 ```sh
 cd web
 npm install
-npm run dev
+npm run dev        # sitio local
+npm test           # ejemplos, documentación, lecciones y soluciones de los retos con el intérprete en WebAssembly
+npm run test:e2e   # recorridos en el navegador con Playwright (después de npm run build)
 ```
 
 **IDE de escritorio:** ver [`ide/README.md`](ide/README.md).

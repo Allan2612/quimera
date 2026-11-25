@@ -9,7 +9,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "node scripts/check-examples.mjs",
-    "build:wasm": "node scripts/build-wasm.mjs"
+    "build:wasm": "node scripts/build-wasm.mjs",
+    "test:e2e": "playwright test"
   },
   "engines": {
     "node": ">=22.18"
@@ -25,6 +26,7 @@
     "codemirror": "6.0.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.1",
     "marked": "^18.3.0",
     "typescript": "7.0.2",
     "vite": "8.3.8"

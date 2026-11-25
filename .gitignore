@@ -1,6 +1,8 @@
 # Sitio web
 web/node_modules/
 web/dist/
+web/test-results/
+web/playwright-report/
 
 # Intérprete compilado
 interprete/bin/

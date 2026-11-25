@@ -48,7 +48,18 @@ jobs:
             echo "::error::src/wasm no coincide con interprete/. Corre 'npm run build:wasm' y súbelo."
             exit 1
           }
-      - name: Programas y ejemplos en WebAssembly
+      - name: Programas, ejemplos, documentación, lecciones y retos en WebAssembly
         run: npm test
       - name: Compilar el sitio
         run: npm run build
+      - name: Navegador para las pruebas de punta a punta
+        run: npx playwright install --with-deps chromium
+      - name: Pruebas de punta a punta (Playwright)
+        run: npm run test:e2e
+      - name: Rastros de Playwright si algo falla
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright
+          path: web/test-results
+          retention-days: 7

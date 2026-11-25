@@ -57,6 +57,7 @@ npm install
 npm run dev      # sitio local con recarga automática
 npm test         # corre los ejemplos, la documentación y las tarjetas con el intérprete en WebAssembly
 npm run build    # versión final en web/dist
+npm run test:e2e # recorridos en el navegador con Playwright (sobre la versión compilada)
 ```
 
 Si cambias el intérprete en C, vuelve a compilar el WebAssembly con `npm run build:wasm`. Usa `emcc` si lo tienes instalado y, si no, la imagen oficial de Emscripten en Docker.
