@@ -6,6 +6,12 @@ import { indentWithTab } from '@codemirror/commands';
 import { setDiagnostics, type Diagnostic } from '@codemirror/lint';
 import { quimeraHighlight, quimeraLanguage } from './quimera-language';
 import type { RunResult } from './run-quimera';
+import { highlightToHtml } from './quimera-tokens';
+
+/* Código fijo de la página (bloques y palabras dentro del texto): mismos colores que el editor */
+document.querySelectorAll<HTMLElement>('main code').forEach((el) => {
+  el.innerHTML = highlightToHtml(el.textContent ?? '');
+});
 
 /* ---------------- Ejemplos ---------------- */
 

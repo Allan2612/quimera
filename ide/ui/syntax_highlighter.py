@@ -21,39 +21,35 @@ class QuimeraHighlighter(QSyntaxHighlighter):
                 fmt.setFontItalic(True)
             return fmt
 
-        # === PALETA DE COLORES (tema oscuro VSCode) ===
-        fmt_keyword   = make_format("#569CD6", bold=True)   # Azul
-        fmt_type      = make_format("#4EC9B0")              # Verde-azulado
-        fmt_string    = make_format("#CE9178")              # Naranja
-        fmt_number    = make_format("#B5CEA8")              # Verde claro
-        fmt_comment   = make_format("#6A9955", italic=True) # Verde apagado
-        fmt_operator  = make_format("#C586C0")              # Violeta
-        fmt_function  = make_format("#DCDCAA")              # Amarillo (llamadas)
-        fmt_func_decl = make_format("#FFD700", bold=True)   # Dorado (nombre declarado)
-        fmt_end       = make_format("#9CDCFE", bold=True)   # Azul celeste
+        # === PALETA (la misma del sitio quimera.avt.codes, variante oscura) ===
+        fmt_control   = make_format("#C7A6F7", bold=True)   # If ElseIf Else End While For Return
+        fmt_io        = make_format("#8CC4EA", bold=True)   # Print Read
+        fmt_logic     = make_format("#EF9FCF", bold=True)   # And Or Not
+        fmt_type      = make_format("#A3D39F")              # Integer Float String Char Boolean List
+        fmt_atom      = make_format("#F3B57C")              # True False Null
+        fmt_string    = make_format("#E8C47C")
+        fmt_number    = make_format("#F4A8A1")
+        fmt_comment   = make_format("#93928C", italic=True)
+        fmt_operator  = make_format("#A5A49F")
+        fmt_function  = make_format("#F1F0EC", bold=True)  # llamadas
+        fmt_func_decl = make_format("#F1F0EC", bold=True)  # nombre declarado
+        fmt_method    = make_format("#7FD8CD")              # .append .remove .size
 
-        # === PALABRAS RESERVADAS ===
-        keywords = [
-            "If", "ElseIf", "Else", "For", "While", "End",
-            "Function", "Return", "Void",
-            "Integer", "Float", "Char", "String", "Boolean", "Null",
-            "List", "Print", "Read", "And", "Or", "Not", "True", "False"
-        ]
-        for kw in keywords:
-            regex = QRegExp(rf"\b{kw}\b")  # sensible a mayúsculas
-            regex.setPatternSyntax(QRegExp.RegExp2)
-            self.rules.append((regex, fmt_keyword))
+        def add_words(words, fmt):
+            for w in words:
+                regex = QRegExp(rf"\b{w}\b")  # palabra completa, sensible a mayúsculas
+                regex.setPatternSyntax(QRegExp.RegExp2)
+                self.rules.append((regex, fmt))
 
-        # === END (prioridad alta) ===
-        regex_end = QRegExp(r"\bEnd\b")
-        regex_end.setPatternSyntax(QRegExp.RegExp2)
-        self.rules.insert(0, (regex_end, fmt_end))
+        add_words(["If", "ElseIf", "Else", "End", "While", "For", "Return"], fmt_control)
+        add_words(["Print", "Read"], fmt_io)
+        add_words(["And", "Or", "Not"], fmt_logic)
+        add_words(["Integer", "Float", "String", "Char", "Boolean", "List"], fmt_type)
+        add_words(["True", "False", "Null"], fmt_atom)
 
-        # === Tipos de datos ===
-        for t in ["Integer", "Float", "Char", "String", "Boolean", "List", "Matrix", "Null"]:
-            regex = QRegExp(rf"\b{t}\b")
-            regex.setPatternSyntax(QRegExp.RegExp2)
-            self.rules.append((regex, fmt_type))
+        method_regex = QRegExp(r"\.(append|remove|size)\b")
+        method_regex.setPatternSyntax(QRegExp.RegExp2)
+        self.rules.append((method_regex, fmt_method))
 
         # === Operadores ===
         for op in [r"\+", "-", r"\*", "/", "=", "==", "!=", "<", ">", "<=", ">="]:

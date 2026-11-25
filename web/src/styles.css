@@ -21,6 +21,19 @@
   --selection: rgba(31, 108, 159, 0.14);
   --glow: rgba(149, 100, 0, 0.05);
 
+  /* Sintaxis de Quimera (contraste >= 4.5:1 sobre --surface y --surface-2) */
+  --tk-control: #7c3aed;
+  --tk-io: #0b63ce;
+  --tk-logic: #c0267a;
+  --tk-type: #15803d;
+  --tk-atom: #c2410c;
+  --tk-string: #a16207;
+  --tk-number: #c81e1e;
+  --tk-method: #0f766e;
+  --tk-function: #111111;
+  --tk-operator: #6d6c68;
+  --tk-comment: #6f6e6a;
+
   --font-sans: 'Geist', 'SF Pro Display', 'Helvetica Neue', sans-serif;
   --font-serif: 'Instrument Serif', 'Newsreader', Georgia, serif;
   --font-mono: 'Geist Mono', 'SF Mono', 'JetBrains Mono', ui-monospace, monospace;
@@ -50,6 +63,18 @@
     --yellow: #e5c17a;
     --selection: rgba(140, 196, 234, 0.18);
     --glow: rgba(229, 193, 122, 0.04);
+
+    --tk-control: #c7a6f7;
+    --tk-io: #8cc4ea;
+    --tk-logic: #ef9fcf;
+    --tk-type: #a3d39f;
+    --tk-atom: #f3b57c;
+    --tk-string: #e8c47c;
+    --tk-number: #f4a8a1;
+    --tk-method: #7fd8cd;
+    --tk-function: #f1f0ec;
+    --tk-operator: #a5a49f;
+    --tk-comment: #93928c;
     color-scheme: dark;
   }
 }
@@ -120,6 +145,19 @@ label code {
   background: radial-gradient(60vw 40vw at 80% -10%, var(--glow), transparent 70%);
   z-index: -1;
 }
+
+/* ---------- Colores de sintaxis (editor y bloques de código) ---------- */
+.tk-control { color: var(--tk-control); font-weight: 500; }
+.tk-io { color: var(--tk-io); font-weight: 500; }
+.tk-logic { color: var(--tk-logic); font-weight: 500; }
+.tk-type { color: var(--tk-type); }
+.tk-atom { color: var(--tk-atom); }
+.tk-string { color: var(--tk-string); }
+.tk-number { color: var(--tk-number); }
+.tk-method { color: var(--tk-method); }
+.tk-function { color: var(--tk-function); font-weight: 500; }
+.tk-operator { color: var(--tk-operator); }
+.tk-comment { color: var(--tk-comment); font-style: italic; }
 
 /* ---------- Barra superior ---------- */
 .topbar {

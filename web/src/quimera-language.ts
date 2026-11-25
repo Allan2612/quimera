@@ -1,68 +1,50 @@
-// Resaltado de sintaxis de Quimera para CodeMirror (mismas palabras que el lexer en C)
-import { HighlightStyle, StreamLanguage, syntaxHighlighting } from '@codemirror/language';
+// Quimera en CodeMirror: usa el mismo tokenizador que los bloques de código de la página
+// (quimera-tokens.ts) y pinta con las mismas clases .tk-* (colores en styles.css).
+import { HighlightStyle, StreamLanguage, syntaxHighlighting, type StringStream } from '@codemirror/language';
 import { tags as t } from '@lezer/highlight';
+import { scanToken, startState, type ScanState, type TokenKind } from './quimera-tokens';
 
-const KEYWORDS = new Set([
-  'If', 'ElseIf', 'Else', 'End', 'While', 'For', 'Return', 'Print', 'Read', 'And', 'Or', 'Not',
-]);
-const TYPES = new Set(['Integer', 'Float', 'String', 'Char', 'Boolean', 'List']);
-const ATOMS = new Set(['True', 'False', 'Null']);
-
-interface State {
-  inComment: boolean;
-}
-
-const quimeraParser = {
-  name: 'quimera',
-  startState: (): State => ({ inComment: false }),
-  token(stream: import('@codemirror/language').StringStream, state: State): string | null {
-    if (state.inComment) {
-      if (stream.skipTo('*/')) {
-        stream.match('*/');
-        state.inComment = false;
-      } else {
-        stream.skipToEnd();
-      }
-      return 'comment';
-    }
-    if (stream.eatSpace()) return null;
-    if (stream.match('//')) {
-      stream.skipToEnd();
-      return 'comment';
-    }
-    if (stream.match('/*')) {
-      state.inComment = true;
-      return 'comment';
-    }
-    if (stream.match(/^"(?:[^"\\]|\\.)*"?/)) return 'string';
-    if (stream.match(/^'(?:[^'\\]|\\.)'?/)) return 'string';
-    if (stream.match(/^\d+(?:\.\d+)?/)) return 'number';
-    if (stream.match(/^[A-Za-z_][A-Za-z0-9_]*/)) {
-      const word = stream.current();
-      if (KEYWORDS.has(word)) return 'keyword';
-      if (TYPES.has(word)) return 'typeName';
-      if (ATOMS.has(word)) return 'atom';
-      if (stream.peek() === '(') return 'variableName.function';
-      return 'variableName';
-    }
-    if (stream.match(/^(?:==|!=|<=|>=|\+=|-=|\*\*|[+\-*/%<>=.])/)) return 'operator';
-    stream.next();
-    return null;
-  },
-  languageData: { commentTokens: { line: '//', block: { open: '/*', close: '*/' } } },
+/* Tipo de token -> nombre de estilo de CodeMirror (cada uno corresponde a una etiqueta de @lezer/highlight) */
+const STYLE: Record<TokenKind, string | null> = {
+  control: 'controlKeyword',
+  io: 'keyword',
+  logic: 'operatorKeyword',
+  type: 'typeName',
+  atom: 'atom',
+  string: 'string',
+  number: 'number',
+  comment: 'comment',
+  method: 'propertyName',
+  function: 'variableName.function',
+  variable: 'variableName',
+  operator: 'operator',
+  plain: null,
 };
 
-export const quimeraLanguage = StreamLanguage.define(quimeraParser);
+export const quimeraLanguage = StreamLanguage.define<ScanState>({
+  name: 'quimera',
+  startState,
+  copyState: (s) => ({ ...s }),
+  token(stream: StringStream, state: ScanState) {
+    const { end, kind } = scanToken(stream.string, stream.pos, state);
+    stream.pos = Math.max(end, stream.pos + 1);
+    return STYLE[kind];
+  },
+  languageData: { commentTokens: { line: '//', block: { open: '/*', close: '*/' } } },
+});
 
 export const quimeraHighlight = syntaxHighlighting(
   HighlightStyle.define([
-    { tag: t.keyword, color: 'var(--blue)', fontWeight: '500' },
-    { tag: t.typeName, color: 'var(--green)' },
-    { tag: t.atom, color: 'var(--red)' },
-    { tag: t.string, color: 'var(--yellow)' },
-    { tag: t.number, color: 'var(--red)' },
-    { tag: t.comment, color: 'var(--muted)', fontStyle: 'italic' },
-    { tag: t.function(t.variableName), color: 'var(--ink)', fontWeight: '500' },
-    { tag: t.operator, color: 'var(--muted)' },
+    { tag: t.controlKeyword, class: 'tk-control' },
+    { tag: t.keyword, class: 'tk-io' },
+    { tag: t.operatorKeyword, class: 'tk-logic' },
+    { tag: t.typeName, class: 'tk-type' },
+    { tag: t.atom, class: 'tk-atom' },
+    { tag: t.string, class: 'tk-string' },
+    { tag: t.number, class: 'tk-number' },
+    { tag: t.comment, class: 'tk-comment' },
+    { tag: t.propertyName, class: 'tk-method' },
+    { tag: t.function(t.variableName), class: 'tk-function' },
+    { tag: t.operator, class: 'tk-operator' },
   ]),
 );

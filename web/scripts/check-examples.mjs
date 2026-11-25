@@ -41,5 +41,28 @@ for (const f of readdirSync(examples).filter((x) => x.endsWith('.qmr')).sort()) 
   report('ejemplo ' + f, wantError ? exitCode === 1 : exitCode === 0, '  salida: ' + lines.join('\n  '));
 }
 
+// Colores de sintaxis: cada palabra cae en su tipo de token
+{
+  const { highlightToHtml } = await import('../src/quimera-tokens.ts');
+  const html = highlightToHtml(
+    'If (x And True) Print(l.size(), f(2), "a") End\nInteger size = 1; /* varias\nlíneas */ Read(n);',
+  );
+  const has = (s) => html.includes(s);
+  const checks = [
+    ['If es control', has('<span class="tk-control">If</span>')],
+    ['And es lógico', has('<span class="tk-logic">And</span>')],
+    ['True es átomo', has('<span class="tk-atom">True</span>')],
+    ['Print es E/S', has('<span class="tk-io">Print</span>')],
+    ['.size es método', has('.<span class="tk-method">size</span>')],
+    ['f( es función', has('<span class="tk-function">f</span>')],
+    ['texto', has('<span class="tk-string">"a"</span>')],
+    ['número', has('<span class="tk-number">2</span>')],
+    ['size sin punto no es método', has('<span class="tk-type">Integer</span> size')],
+    ['comentario de varias líneas', has('<span class="tk-comment">líneas */</span>')],
+    ['después del comentario sigue coloreando', has('<span class="tk-io">Read</span>')],
+  ];
+  for (const [name, ok] of checks) report('sintaxis: ' + name, ok, '  html: ' + html);
+}
+
 console.log(`${total} pruebas en WebAssembly, ${fails} fallas`);
 process.exit(fails ? 1 : 0);
