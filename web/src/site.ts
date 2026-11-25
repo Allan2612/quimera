@@ -1,5 +1,6 @@
 // Comportamiento común a todas las páginas: tema claro/oscuro, color del código fijo,
 // enlace activo del menú y la entrada suave de las secciones.
+import { inject } from '@vercel/analytics';
 import { highlightToHtml } from './quimera-tokens';
 
 /* ---------------- Tema ---------------- */
@@ -96,6 +97,7 @@ function revealOnScroll() {
 }
 
 export function initSite() {
+  inject(); // Vercel Web Analytics: visitas y páginas vistas (sin cookies)
   initTheme();
   highlightStaticCode();
   markCurrentNav();
