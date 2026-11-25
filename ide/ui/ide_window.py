@@ -18,7 +18,12 @@ from ui.code_editor import CodeEditor
 # ================================================================================================================================
 #  CONFIGURACIÓN (EDITAS SOLO ESTO)
 # ================================================================================================================================
-QUIMERA_PROJECT_DIR = r"C:\Users\USUARIO\Documents\Allan\Paradigmas\proyecto\Quimera_Lenguage"  # Carpeta del proyecto Quimera (donde está el Makefile)
+# Carpeta del intérprete (donde está el Makefile): en este repo es ../interprete. Se puede cambiar
+# con la variable de entorno QUIMERA_PROJECT_DIR.
+QUIMERA_PROJECT_DIR = os.environ.get(
+    "QUIMERA_PROJECT_DIR",
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "interprete")),
+)
 MSYS_ROOT = r"C:\msys64"  # Ruta raíz de MSYS2
 # ================================================================================================================================
 

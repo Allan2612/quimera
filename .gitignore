@@ -1,0 +1,15 @@
+# Sitio web
+web/node_modules/
+web/dist/
+
+# Intérprete compilado
+interprete/bin/
+interprete/obj/
+
+# Python (IDE)
+__pycache__/
+.venv/
+
+# Sistema
+.DS_Store
+Thumbs.db
