@@ -1,3 +1,8 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="web/public/logo-oscuro.svg" />
+  <img src="web/public/logo-claro.svg" alt="Quimera" width="320" />
+</picture>
+
 # Quimera
 
 Quimera es un lenguaje de programación con palabras clave en inglés y mensajes en español, hecho desde cero en C: lexer, parser, analizador semántico e intérprete. Se puede probar en el navegador, sin instalar nada, en **[quimera.avt.codes](https://quimera.avt.codes)**.
