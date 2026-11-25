@@ -109,6 +109,8 @@ function page(slug: string, root: string): string {
       <div class="topbar-end">
         <nav aria-label="Secciones">
           <a href="/#probar">Probar</a>
+          <a href="/aprende/">Aprender</a>
+          <a href="/retos/">Retos</a>
           <a href="/docs/">Documentación</a>
           <a href="https://github.com/Allan2612/quimera" rel="noopener">GitHub</a>
         </nav>

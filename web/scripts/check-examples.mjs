@@ -74,6 +74,29 @@ for (const f of readdirSync(examples).filter((x) => x.endsWith('.qmr')).sort()) 
   }
 }
 
+// Tutorial: el código de cada lección corre sin errores
+{
+  const { LESSONS } = await import('../src/learn/lessons.ts');
+  for (const lesson of LESSONS) {
+    const { lines, exitCode } = await runQuimera(lesson.code, lesson.input ?? '');
+    report('lección ' + lesson.id, exitCode === 0, '  salida: ' + lines.join('\n  '));
+  }
+}
+
+// Retos: la solución de referencia pasa todos los casos (así ningún reto queda imposible)
+{
+  const { CHALLENGES, normalize } = await import('../src/challenges/challenges.ts');
+  const { parseOutput } = await import('../src/messages.ts');
+  for (const ch of CHALLENGES) {
+    const solution = read(join(web, 'retos-soluciones', `${ch.id}.qmr`));
+    for (const [i, t] of ch.tests.entries()) {
+      const { lines, exitCode } = await runQuimera(solution, t.input);
+      const got = normalize(parseOutput(lines).outputs.join('\n'));
+      report(`reto ${ch.id} caso ${i + 1}`, exitCode === 0 && got === normalize(t.output), `  esperado: ${JSON.stringify(t.output)}\n  obtenido: ${JSON.stringify(got)} (exit ${exitCode})`);
+    }
+  }
+}
+
 // Colores de sintaxis: cada palabra cae en su tipo de token
 {
   const { highlightToHtml } = await import('../src/quimera-tokens.ts');

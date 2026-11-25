@@ -1,0 +1,7 @@
+Integer n;
+Read(n);
+If (n % 2 == 0)
+  Print("par");
+Else
+  Print("impar");
+End

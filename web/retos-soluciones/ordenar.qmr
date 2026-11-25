@@ -1,0 +1,18 @@
+Integer cantidad;
+Read(cantidad);
+Integer List numeros;
+For (Integer i = 0 : i < cantidad : i += 1)
+  Integer x;
+  Read(x);
+  numeros.append(x);
+End
+For (Integer i = 0 : i < numeros.size() : i += 1)
+  For (Integer j = 0 : j < numeros.size() - 1 - i : j += 1)
+    If (numeros[j] > numeros[j + 1])
+      Integer t = numeros[j];
+      numeros[j] = numeros[j + 1];
+      numeros[j + 1] = t;
+    End
+  End
+End
+Print(numeros);

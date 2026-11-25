@@ -1,0 +1,11 @@
+Integer cantidad;
+Read(cantidad);
+Integer positivos = 0;
+For (Integer i = 0 : i < cantidad : i += 1)
+  Integer x;
+  Read(x);
+  If (x > 0)
+    positivos += 1;
+  End
+End
+Print(positivos);

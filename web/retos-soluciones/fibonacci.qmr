@@ -1,0 +1,10 @@
+Integer n;
+Read(n);
+Integer a = 0;
+Integer b = 1;
+For (Integer i = 0 : i < n : i += 1)
+  Print(a);
+  Integer siguiente = a + b;
+  a = b;
+  b = siguiente;
+End

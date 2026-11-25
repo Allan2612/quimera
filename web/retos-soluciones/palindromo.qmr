@@ -1,0 +1,13 @@
+Integer n;
+Read(n);
+Integer resto = n;
+Integer reves = 0;
+While (resto > 0)
+  reves = reves * 10 + resto % 10;
+  resto = resto / 10;
+End
+If (reves == n)
+  Print("si");
+Else
+  Print("no");
+End

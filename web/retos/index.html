@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      (function () {
+        var d = document.documentElement, t;
+        d.classList.add('js');
+        try { t = localStorage.getItem('quimera.tema'); } catch (e) {}
+        var dark = t === 'oscuro' || (t !== 'claro' && matchMedia('(prefers-color-scheme: dark)').matches);
+        d.dataset.theme = dark ? 'dark' : 'light';
+      })();
+    </script>
+    <title>Retos de Quimera · ejercicios con revisión automática</title>
+    <meta name="description" content="Diez ejercicios de Quimera, de fácil a difícil, con casos de prueba que se revisan en el navegador: suma, FizzBuzz, primos, Fibonacci, ordenar y más." />
+    <link rel="canonical" href="https://quimera.avt.codes/retos/" />
+    <meta property="og:title" content="Retos de Quimera · ejercicios con revisión automática" />
+    <meta property="og:description" content="Diez ejercicios con casos de prueba que se revisan en el navegador." />
+    <meta property="og:url" content="https://quimera.avt.codes/retos/" />
+    <meta name="theme-color" content="#FBFBFA" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#161615" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div class="ambient" aria-hidden="true"></div>
+    <header class="topbar">
+      <a class="wordmark" href="/">Quimera</a>
+      <div class="topbar-end">
+        <nav aria-label="Secciones">
+          <a href="/#probar">Probar</a>
+          <a href="/aprende/">Aprender</a>
+          <a href="/retos/">Retos</a>
+          <a href="/docs/">Documentación</a>
+          <a href="https://github.com/Allan2612/quimera" rel="noopener">GitHub</a>
+        </nav>
+        <button id="theme" class="icon-btn" type="button" aria-label="Cambiar tema"></button>
+      </div>
+    </header>
+
+    <div class="docs">
+      <aside class="docs-nav" aria-label="Retos">
+        <p class="docs-nav-label">Retos <span id="progress"></span></p>
+        <ol id="challenges" class="steps"></ol>
+      </aside>
+
+      <main class="doc doc-wide">
+        <p class="eyebrow"><span id="level" class="tag"></span></p>
+        <h1 id="title"></h1>
+        <div id="statement" class="lesson-body"></div>
+        <div id="examples"></div>
+
+        <div class="window lesson-window">
+          <div class="window-bar">
+            <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+            <div class="bar-actions">
+              <button id="reset" class="btn-ghost" type="button" title="Vuelve al código inicial del reto">Restaurar</button>
+              <button id="try" class="btn-ghost" type="button" title="Ejecuta con los datos del primer ejemplo">Ejecutar</button>
+              <button id="check" class="btn-primary" type="button">Revisar</button>
+            </div>
+          </div>
+          <div class="panes">
+            <div class="pane pane-editor">
+              <div id="editor" class="editor editor-short"></div>
+            </div>
+            <div class="pane pane-output">
+              <div class="output-head">
+                <span>Salida</span>
+                <span id="status" class="status" role="status" aria-live="polite"></span>
+              </div>
+              <ol id="output" class="output" aria-label="Salida del programa"></ol>
+            </div>
+          </div>
+        </div>
+
+        <section class="results" aria-labelledby="results-title">
+          <h2 id="results-title" class="sr-only">Resultado de la revisión</h2>
+          <p id="verdict" class="verdict" role="status" aria-live="polite"></p>
+          <ol id="checks" class="checks"></ol>
+        </section>
+      </main>
+    </div>
+
+    <footer class="footer">
+      <p>Hecho por <strong>Raúl Bejarano Mora</strong> y <strong>Allan Vargas Torres</strong> para el curso EIF400 Paradigmas de Programación de la Universidad Nacional de Costa Rica.</p>
+      <p class="muted">Código abierto con licencia MIT en <a href="https://github.com/Allan2612/quimera" rel="noopener">GitHub</a>.</p>
+    </footer>
+    <script type="module" src="/src/retos.ts"></script>
+  </body>
+</html>

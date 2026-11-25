@@ -1,0 +1,15 @@
+Integer n;
+Read(n);
+For (Integer i = 2 : i <= n : i += 1)
+  Boolean primo = True;
+  Integer d = 2;
+  While (d * d <= i And primo)
+    If (i % d == 0)
+      primo = False;
+    End
+    d += 1;
+  End
+  If (primo)
+    Print(i);
+  End
+End

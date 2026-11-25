@@ -1,0 +1,12 @@
+Integer cantidad;
+Read(cantidad);
+Integer mayor;
+Read(mayor);
+For (Integer i = 1 : i < cantidad : i += 1)
+  Integer x;
+  Read(x);
+  If (x > mayor)
+    mayor = x;
+  End
+End
+Print(mayor);

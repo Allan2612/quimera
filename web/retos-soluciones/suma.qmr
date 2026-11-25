@@ -1,0 +1,7 @@
+Integer n;
+Read(n);
+Integer suma = 0;
+For (Integer i = 1 : i <= n : i += 1)
+  suma += i;
+End
+Print(suma);

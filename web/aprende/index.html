@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      (function () {
+        var d = document.documentElement, t;
+        d.classList.add('js');
+        try { t = localStorage.getItem('quimera.tema'); } catch (e) {}
+        var dark = t === 'oscuro' || (t !== 'claro' && matchMedia('(prefers-color-scheme: dark)').matches);
+        d.dataset.theme = dark ? 'dark' : 'light';
+      })();
+    </script>
+    <title>Aprende Quimera · tutorial en 8 lecciones</title>
+    <meta name="description" content="Un tutorial corto de Quimera: ocho lecciones con un editor para ejecutar y cambiar cada ejemplo, de Hola, mundo a leer datos." />
+    <link rel="canonical" href="https://quimera.avt.codes/aprende/" />
+    <meta property="og:title" content="Aprende Quimera · tutorial en 8 lecciones" />
+    <meta property="og:description" content="Ocho lecciones cortas con un editor para ejecutar y cambiar cada ejemplo." />
+    <meta property="og:url" content="https://quimera.avt.codes/aprende/" />
+    <meta name="theme-color" content="#FBFBFA" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#161615" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div class="ambient" aria-hidden="true"></div>
+    <header class="topbar">
+      <a class="wordmark" href="/">Quimera</a>
+      <div class="topbar-end">
+        <nav aria-label="Secciones">
+          <a href="/#probar">Probar</a>
+          <a href="/aprende/">Aprender</a>
+          <a href="/retos/">Retos</a>
+          <a href="/docs/">Documentación</a>
+          <a href="https://github.com/Allan2612/quimera" rel="noopener">GitHub</a>
+        </nav>
+        <button id="theme" class="icon-btn" type="button" aria-label="Cambiar tema"></button>
+      </div>
+    </header>
+
+    <div class="docs">
+      <aside class="docs-nav" aria-label="Lecciones">
+        <p class="docs-nav-label">Lecciones</p>
+        <ol id="lessons" class="steps"></ol>
+      </aside>
+
+      <main class="doc doc-wide">
+        <p class="eyebrow" id="lesson-num"></p>
+        <h1 id="lesson-title"></h1>
+        <div id="lesson-body" class="lesson-body"></div>
+        <p class="task"><strong>Prueba esto:</strong> <span id="lesson-task"></span></p>
+
+        <div class="window lesson-window">
+          <div class="window-bar">
+            <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+            <div class="bar-actions">
+              <button id="reset" class="btn-ghost" type="button" title="Vuelve al código de la lección">Restaurar</button>
+              <button id="run" class="btn-primary" type="button">
+                <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 1.5v9l8-4.5z" fill="currentColor" /></svg>
+                Ejecutar
+              </button>
+            </div>
+          </div>
+          <div class="panes">
+            <div class="pane pane-editor">
+              <div id="editor" class="editor editor-short"></div>
+              <div class="stdin" id="stdin-box" hidden>
+                <label for="stdin">Entrada <span class="hint">— una línea por cada <code>Read</code></span></label>
+                <textarea id="stdin" rows="2" spellcheck="false"></textarea>
+              </div>
+            </div>
+            <div class="pane pane-output">
+              <div class="output-head">
+                <span>Salida</span>
+                <span id="status" class="status" role="status" aria-live="polite"></span>
+              </div>
+              <ol id="output" class="output" aria-label="Salida del programa"></ol>
+            </div>
+          </div>
+        </div>
+
+        <nav class="doc-pager" aria-label="Lecciones">
+          <a id="prev" href="#"><small>Anterior</small><span></span></a>
+          <a id="next" class="next" href="#"><small>Siguiente</small><span></span></a>
+        </nav>
+      </main>
+    </div>
+
+    <footer class="footer">
+      <p>Hecho por <strong>Raúl Bejarano Mora</strong> y <strong>Allan Vargas Torres</strong> para el curso EIF400 Paradigmas de Programación de la Universidad Nacional de Costa Rica.</p>
+      <p class="muted">Código abierto con licencia MIT en <a href="https://github.com/Allan2612/quimera" rel="noopener">GitHub</a>.</p>
+    </footer>
+    <script type="module" src="/src/aprende.ts"></script>
+  </body>
+</html>

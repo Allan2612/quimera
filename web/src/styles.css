@@ -720,8 +720,21 @@ h2 {
   .hero {
     padding: 64px 0 40px;
   }
-  .topbar nav a:nth-child(3) {
+  .topbar nav a:first-child,
+  .topbar nav a:last-child {
     display: none;
+  }
+  .topbar {
+    padding: 12px 12px;
+    gap: 8px;
+  }
+  .topbar nav {
+    flex-wrap: nowrap;
+    gap: 0;
+  }
+  .topbar nav a {
+    padding: 6px 6px;
+    font-size: 13px;
   }
   .bar-actions {
     margin-left: 0;
@@ -1035,6 +1048,10 @@ th code {
   font-weight: 500;
 }
 
+.doc-pager a[hidden] {
+  display: none;
+}
+
 .doc-pager a:hover {
   text-decoration: underline;
 }
@@ -1051,12 +1068,13 @@ th code {
 
 @media (max-width: 900px) {
   .docs {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 8px;
     padding-top: 20px;
   }
   .docs-nav {
     position: static;
+    min-width: 0;
   }
   .docs-nav ul:first-child {
     display: flex;
@@ -1065,5 +1083,158 @@ th code {
   .docs-nav-label,
   .docs-toc {
     display: none;
+  }
+}
+
+/* ---------- Tutorial y retos ---------- */
+.doc-wide {
+  max-width: none;
+}
+
+.docs-nav ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.step-n {
+  display: inline-block;
+  width: 1.6em;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.docs-nav .done {
+  margin-left: 6px;
+  color: var(--green);
+  font-weight: 600;
+}
+
+.lesson-body {
+  max-width: 720px;
+}
+
+.lesson-body p {
+  margin: 0 0 12px;
+}
+
+.task {
+  max-width: 720px;
+  margin: 4px 0 20px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--yellow-bg);
+  color: var(--yellow);
+  font-size: 15px;
+}
+
+.lesson-window .panes {
+  min-height: 320px;
+}
+
+.editor-short {
+  min-height: 260px;
+}
+
+.examples {
+  max-width: 720px;
+}
+
+.examples pre,
+.diff pre {
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  font-size: 13px;
+  white-space: pre-wrap;
+}
+
+.results {
+  margin-top: 20px;
+}
+
+.verdict {
+  margin: 0 0 10px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.verdict.ok {
+  color: var(--green);
+}
+
+.verdict.error {
+  color: var(--red);
+}
+
+.checks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.checks li {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 4px 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.checks .pass {
+  background: var(--green-bg);
+  color: var(--green);
+}
+
+.checks .fail {
+  background: var(--red-bg);
+  color: var(--red);
+}
+
+.checks .mark {
+  font-weight: 600;
+}
+
+.diff {
+  grid-column: 2;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  color: var(--ink);
+}
+
+.diff small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+@media (max-width: 560px) {
+  .diff {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* En pantallas angostas, lecciones y retos van en una fila que se desliza */
+@media (max-width: 900px) {
+  .docs-nav ol {
+    display: flex;
+    overflow-x: auto;
+    gap: 4px;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+  }
+  .docs-nav ol a {
+    white-space: nowrap;
+    border: 1px solid var(--border);
   }
 }

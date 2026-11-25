@@ -1,0 +1,10 @@
+Integer factorial(Integer n)
+  If (n <= 1)
+    Return 1;
+  End
+  Return n * factorial(n - 1);
+End
+
+Integer n;
+Read(n);
+Print(factorial(n));

@@ -1,0 +1,13 @@
+Integer n;
+Read(n);
+For (Integer i = 1 : i <= n : i += 1)
+  If (i % 15 == 0)
+    Print("FizzBuzz");
+  ElseIf (i % 3 == 0)
+    Print("Fizz");
+  ElseIf (i % 5 == 0)
+    Print("Buzz");
+  Else
+    Print(i);
+  End
+End
