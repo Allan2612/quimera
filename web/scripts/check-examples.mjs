@@ -56,6 +56,24 @@ for (const f of readdirSync(examples).filter((x) => x.endsWith('.qmr')).sort()) 
   }
 }
 
+// Documentación: cada bloque ```qmr se ejecuta. Los normales deben terminar bien; los marcados con
+// error=NNNN deben fallar con ese código (así la página de errores muestra el error que explica).
+{
+  const { fenceInfo } = await import('../docs-plugin.ts');
+  const docs = join(web, 'src', 'docs');
+  for (const f of readdirSync(docs).filter((x) => x.endsWith('.md')).sort()) {
+    const md = read(join(docs, f));
+    let n = 0;
+    for (const m of md.matchAll(/^```(qmr[^\n]*)\n([\s\S]*?)^```$/gm)) {
+      const info = fenceInfo(m[1]);
+      const { lines, exitCode } = await runQuimera(m[2], info.input);
+      const codes = lines.filter((l) => l.includes('"type":"diagnostic"')).map((l) => String(JSON.parse(l).code));
+      const ok = info.error ? exitCode !== 0 && codes.includes(info.error) : exitCode === 0;
+      report(`documentación ${f} #${++n}${info.error ? ' (error ' + info.error + ')' : ''}`, ok, '  salida: ' + lines.join('\n  '));
+    }
+  }
+}
+
 // Colores de sintaxis: cada palabra cae en su tipo de token
 {
   const { highlightToHtml } = await import('../src/quimera-tokens.ts');
