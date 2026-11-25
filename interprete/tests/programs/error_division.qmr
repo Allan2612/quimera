@@ -1,0 +1,4 @@
+Integer a = 10;
+Integer b = 0;
+Print(a / b);
+Print("no debe llegar aquí");

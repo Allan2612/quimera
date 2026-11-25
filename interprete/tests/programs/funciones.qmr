@@ -1,0 +1,22 @@
+Integer doble(Integer n)
+  Return n * 2;
+End
+Integer factorial(Integer n)
+  If (n <= 1)
+    Return 1;
+  End
+  Return n * factorial(n - 1);
+End
+Null saludar(String nombre)
+  Print("Hola " + nombre);
+End
+Integer contador = 0;
+Null incrementar()
+  contador += 1;
+End
+Print(doble(21));
+Print(factorial(5));
+saludar("Ana");
+incrementar();
+incrementar();
+Print(contador);

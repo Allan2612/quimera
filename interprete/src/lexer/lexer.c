@@ -1,0 +1,502 @@
+#include "lexer.h"
+#include "symbol_table.h"
+#include "utils.h"
+#include "diag.h"
+#include "interner.h"
+#include <stdlib.h>
+#include <string.h>
+
+//------------Helper Functions----------------
+
+static int is_space(char c) {
+    return c == ' ' || c == '\t' || c == '\n' ||
+           c == '\r' || c == '\f' || c == '\v';
+}
+
+
+static int is_alpha(char c) {
+    return (c >= 'A' && c <= 'Z') ||
+           (c >= 'a' && c <= 'z');
+}
+
+static int is_alnum_uscore(char c) {
+    return is_alpha(c) || ((c >= '0' && c <= '9') || c == '_');
+}
+
+static int is_digit(char c) {
+    return (c >= '0' && c <= '9');
+}
+
+// Función para verificar si un carácter es parte de algún operador
+static int is_operator(char c) {
+    // Verificar operadores aritméticos
+    for (size_t i = 0; i < ArithmeticOpCount; i++) {
+        const char *operator = ArithmeticOps[i];
+        if (operator[0] == c) {
+            return 1;
+        }
+    }
+    
+    // Verificar operadores lógicos/comparación
+    for (size_t i = 0; i < LogicCompareOpCount; i++) {
+        const char *operator = LogicCompareOps[i];
+        if (operator[0] == c) {
+            return 1;
+        }
+    }
+    
+    // Verificar operadores de asignación
+    for (size_t i = 0; i < AssignmentOpCount; i++) {
+        const char *operator = AssignmentOps[i];
+        if (operator[0] == c) {
+            return 1;
+        }
+    }
+    
+    return 0;
+}
+
+// Función para verificar si un carácter es parte de algún delimitador
+static int is_delimiter(char c) {
+    // Verificar delimitadores
+    for (size_t i = 0; i < DelimiterCount; i++) {
+        const char *delimiter = Delimiters[i];
+        if (delimiter[0] == c) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+//------------Private Lexer Functions----------------
+
+// Función para verificar si un lexeme es una palabra reservada
+static int is_keyword_lexeme(const char *lexeme, size_t len) {
+    for (size_t i = 0; i < ReservedWordCount; i++) {
+        const char *keyword = ReservedWords[i];
+        size_t keyword_len = strlen(keyword);
+        
+        // Comparar longitud y contenido
+        if (len == keyword_len && strncmp(lexeme, keyword, len) == 0) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static int is_keyword_ptr(const Interned *S, const char *p) {
+    return
+        // Tipos (en tu diseño son keywords)
+        p==S->T_Integer || p==S->T_Float || p==S->T_String ||
+        p==S->T_Boolean || p==S->T_Char  || p==S->T_List   ||
+        // Palabras clave (sin And/Or que son operadores lógicos)
+        p==S->K_If     || p==S->K_ElseIf || p==S->K_Else   ||
+        p==S->K_For    || p==S->K_While  || p==S->K_Return ||
+        p==S->K_Print  || p==S->K_Read   || p==S->K_Not    ||
+        p==S->K_True   || p==S->K_False  || p==S->K_Null   || p==S->K_End;
+}
+
+// Función para verificar si un lexeme es operador lógico textual
+static int is_logic_operator_ptr(const Interned *S, const char *p) {
+    return p==S->K_And || p==S->K_Or || p==S->K_Not;
+}
+
+static int is_logic_operator_lexeme(const char *lexeme, size_t len) {
+    return (len == 3 && strncmp(lexeme, "And", len) == 0) ||
+           (len == 2 && strncmp(lexeme, "Or", len) == 0) ||
+           (len == 3 && strncmp(lexeme, "Not", len) == 0);
+}
+
+// Función para identificar lexemas de identificadores o palabras reservadas
+static void identify_identifier(Lexer *lexer, Token *token) { 
+    size_t start_pos = lexer->position;
+    size_t i = start_pos + 1;
+
+    while (i < lexer->length && is_alnum_uscore(lexer->source[i])) {
+        i++;
+    }
+
+    size_t len = i - start_pos;
+
+    token->line   = lexer->line;
+    token->column = lexer->column;
+    token->length = len;
+
+    // INTERNAR el slice (NUL-terminado único en la arena del interner)
+    const char *interned = interner_intern_slice(lexer->I, lexer->source + start_pos, len);
+    token->lexeme = interned;
+
+    // Clasificación por puntero (rápida)
+    if (is_logic_operator_ptr(&lexer->S, interned) || is_logic_operator_lexeme(interned, len)) {
+        token->type = TOK_LOGIC_OP;
+    } else if (is_keyword_ptr(&lexer->S, interned) || is_keyword_lexeme(interned, len)) {
+        token->type = TOK_KEYWORD;
+    } else {
+        token->type = TOK_IDENTIFIER;
+    }
+
+    lexer->position = i;
+    lexer->column  += len;
+}
+
+static void identify_number(Lexer *lexer, Token *token) { 
+    size_t start_pos = lexer->position;
+    size_t i = start_pos + 1;
+    int has_decimal = 0;
+
+    while (i < lexer->length && (is_digit(lexer->source[i]) || lexer->source[i] == '.')) {
+        if (lexer->source[i] == '.') {
+            has_decimal++;
+        }
+        i++;
+    }
+
+    size_t len = i - start_pos;
+
+    token->line   = lexer->line;
+    token->column = lexer->column;
+    token->length = len;
+    token->lexeme = interner_intern_slice(lexer->I, lexer->source + start_pos, len);
+
+    if (has_decimal == 1) {
+        token->type = TOK_FLOAT;
+    } else if (has_decimal > 1) {
+        token->type = TOK_ERROR;
+        DiagLocation loc = diag_location_create(lexer->line, lexer->column, len, 
+                                               interner_intern_slice(lexer->I, lexer->source + start_pos, len));
+        diag_error(STAGE_LEXER, 1004, loc, NULL);
+    } else {
+        token->type = TOK_INTEGER;
+    }
+
+    lexer->position = i;
+    lexer->column += len;
+}
+
+static void identify_literal(Lexer *lexer, Token *token) {
+    size_t start_pos = lexer->position;
+    size_t i = start_pos + 1; // Saltar comilla inicial
+    bool is_char = (lexer->source[start_pos] == '\'');
+    char quote_type = lexer->source[start_pos];
+
+    size_t line = lexer->line;
+    size_t column = lexer->column + 1; // Ya saltamos la comilla inicial
+
+    // Buscar comilla de cierre y actualizar línea/columna
+    while (i < lexer->length && lexer->source[i] != quote_type) {
+        // Manejar secuencias de escape básicas
+        if (lexer->source[i] == '\\' && i + 1 < lexer->length) {
+            // Manejo de secuencias de escape, ejemplo: \n, \t, \"
+            i += 2;
+            column += 2;
+        } else if (lexer->source[i] == '\n') {
+            // Salto de línea real en el archivo fuente
+            i++;
+            line++;
+            column = 1;
+        } else {
+            i++;
+            column++;
+        }
+    }
+
+    // Incluir la comilla de cierre si la encontramos
+    if (i < lexer->length && lexer->source[i] == quote_type) {
+        i++; 
+        column++;
+    }else{
+        token->type = TOK_ERROR;
+        DiagLocation loc = diag_location_create(lexer->line, lexer->column, i - start_pos, 
+                                               interner_intern_slice(lexer->I, lexer->source + start_pos, i - start_pos));
+        diag_error(STAGE_LEXER, 1006, loc, NULL);
+        lexer->position = i;
+        lexer->line = line;
+        lexer->column = column;
+        return;
+    }
+
+    size_t len = i - start_pos; // Longitud incluyendo comillas
+
+    token->line = lexer->line;
+    token->column = lexer->column;
+    token->length = len;
+    token->lexeme = interner_intern_slice(lexer->I, lexer->source + start_pos, len);; 
+
+    size_t content_len = len - 2; // Longitud del contenido sin comillas
+
+    if (is_char) {
+        // Validaciones más específicas para caracteres
+        if (content_len == 0) {
+            // Carácter vacío: ''
+            token->type = TOK_ERROR;
+            DiagLocation loc = diag_location_create(lexer->line, lexer->column, len, token->lexeme);
+            diag_error(STAGE_LEXER, 1007, loc, NULL);
+        } else if (content_len == 1) {
+            // Carácter normal: 'a'
+            token->type = TOK_CHAR;
+        } else if (content_len == 2 && lexer->source[start_pos + 1] == '\\') {
+            // Secuencia de escape: '\n', '\t', etc.
+            char escape_char = lexer->source[start_pos + 2];
+            if (escape_char == 'n' || escape_char == 't' || escape_char == 'r' ||
+                escape_char == '\\' || escape_char == '\'' || escape_char == '"' ||
+                escape_char == '0') {
+                token->type = TOK_CHAR;
+            } else {
+                // Secuencia de escape inválida
+                token->type = TOK_ERROR;
+                DiagLocation loc = diag_location_create(lexer->line, lexer->column, len, token->lexeme);
+                diag_error(STAGE_LEXER, 1008, loc, NULL);
+            }
+        } else {
+            // Carácter con más de un carácter (sin ser escape válido)
+            token->type = TOK_ERROR;
+            DiagLocation loc = diag_location_create(lexer->line, lexer->column, len, token->lexeme);
+            diag_error(STAGE_LEXER, 1005, loc, NULL);
+        }
+    } else {
+        // Es un string
+        token->type = TOK_STRING;
+    }
+
+    lexer->position = i;
+    lexer->line = line;
+    lexer->column = column;
+}
+
+static void identify_operator(Lexer *lexer, Token *token) {
+    size_t start_pos = lexer->position;
+    size_t len = 0;
+    const char *matched_op = NULL;
+    TokenType op_type = TOK_ERROR;
+    
+    // Buscar el operador más largo que coincida
+    // Verificar operadores aritméticos
+    for (size_t i = 0; i < ArithmeticOpCount; i++) {
+        const char *op = ArithmeticOps[i];
+        size_t op_len = strlen(op);
+        if (start_pos + op_len <= lexer->length && 
+            strncmp(lexer->source + start_pos, op, op_len) == 0 &&
+            op_len > len) {
+            len = op_len;
+            matched_op = op;
+            op_type = TOK_ARITHMETIC_OP;
+            // Salida temprana: no hay operadores de más de 2 caracteres
+            if (len == 2) break;
+        }
+    }
+    
+    // Verificar operadores lógicos/comparación (solo si no encontramos uno de 2 chars)
+    if (len < 2) {
+        for (size_t i = 0; i < LogicCompareOpCount; i++) {
+            const char *op = LogicCompareOps[i];
+            size_t op_len = strlen(op);
+            if (start_pos + op_len <= lexer->length && 
+                strncmp(lexer->source + start_pos, op, op_len) == 0 && 
+                op_len > len) {
+                len = op_len;
+                matched_op = op;
+                op_type = TOK_LOGIC_OP;
+                // Salida temprana: no hay operadores de más de 2 caracteres
+                if (len == 2) break;
+            }
+        }
+    }
+    
+    // Verificar operadores de asignación (solo si no encontramos uno de 2 chars)
+    if (len < 2) {
+        for (size_t i = 0; i < AssignmentOpCount; i++) {
+            const char *op = AssignmentOps[i];
+            size_t op_len = strlen(op);
+            if (start_pos + op_len <= lexer->length && 
+                strncmp(lexer->source + start_pos, op, op_len) == 0 &&
+                op_len > len) {
+                len = op_len;
+                matched_op = op;
+                op_type = TOK_ASSIGNMENT_OP;
+                // Salida temprana: no hay operadores de más de 2 caracteres
+                if (len == 2) break;
+            }
+        }
+    }
+    
+    if (len == 0) {
+        len = 1; // Al menos avanzar 1 carácter
+    }
+
+    token->lexeme = interner_intern_slice(lexer->I, lexer->source + start_pos, len);
+    token->line = lexer->line;
+    token->column = lexer->column;
+    token->length = len;
+
+    if (matched_op) {
+        token->type = op_type;
+    } else {
+        // No debería llegar aquí si is_operator() funciona correctamente
+        token->type = TOK_ERROR;
+    }
+
+    // Avanzar al primer carácter no procesado
+    lexer->position = start_pos + len;
+    lexer->column += len;
+}
+ 
+static void identify_delimiter(Lexer *lexer, Token *token) {
+    size_t start_pos = lexer->position;
+    size_t len = 0;
+    const char *matched_delim = NULL;
+    
+    // Buscar el delimitador más largo que coincida (para escalabilidad futura)
+    for (size_t i = 0; i < DelimiterCount; i++) {
+        const char *delim = Delimiters[i];
+        size_t delim_len = strlen(delim);
+        if (start_pos + delim_len <= lexer->length && 
+            strncmp(lexer->source + start_pos, delim, delim_len) == 0 &&
+            delim_len > len) {
+            len = delim_len;
+            matched_delim = delim;
+        }
+    }
+    
+    if (len == 0) {
+        len = 1; // Al menos avanzar 1 carácter
+    }
+
+    token->lexeme = interner_intern_slice(lexer->I, lexer->source + start_pos, len);
+    token->line = lexer->line;
+    token->column = lexer->column;
+    token->length = len;
+
+    if (matched_delim) {
+        token->type = TOK_DELIMITER;
+    } else {
+        // No debería llegar aquí si is_delimiter() funciona correctamente
+        token->type = TOK_ERROR;
+        
+        // Reportar error de carácter no válido
+        DiagLocation loc = diag_location_create(lexer->line, lexer->column, 1, token->lexeme);
+        diag_error(STAGE_LEXER, 1001, loc, NULL);
+    }
+
+    lexer->position = start_pos + len;
+    lexer->column += len;
+}
+
+// Funciones para saltar comentarios de línea
+static void skip_line_comment(Lexer *lexer) {
+    lexer->position += 2;
+    lexer->column += 2;
+    while (lexer->position < lexer->length && lexer->source[lexer->position] != '\n') {
+        lexer->position++;
+        lexer->column++;
+    }
+    if (lexer->position < lexer->length && lexer->source[lexer->position] == '\n') {
+        // Avanzar *después* del '\n'
+        lexer->position++;
+        lexer->line++;
+        lexer->column = 1;
+    }
+}
+
+// Función para saltar comentarios de bloque
+static void skip_block_comment(Lexer *lexer) {
+    size_t start_line = lexer->line;
+    size_t start_column = lexer->column;
+    
+    lexer->position += 2;
+    lexer->column += 2;
+    
+    while (lexer->position < lexer->length) {
+        if (lexer->position + 1 < lexer->length && 
+            lexer->source[lexer->position] == '*' && 
+            lexer->source[lexer->position + 1] == '/') {
+            lexer->position += 2;
+            lexer->column += 2;
+            return; // Comentario cerrado correctamente
+        }
+        
+        if (lexer->source[lexer->position] == '\n') {
+            lexer->line++;
+            lexer->column = 1;
+        } else {
+            lexer->column++;
+        }
+        lexer->position++;
+    }
+    
+    // Si llegamos aquí, el comentario no se cerró
+    DiagLocation loc = diag_location_simple(start_line, start_column);
+    diag_error(STAGE_LEXER, 1003, loc, NULL);
+}
+
+//------------Main Lexer Functions----------------
+
+void init_lexer(Lexer *lexer, const char *source, Interner *I, const Interned *S) {
+    lexer->source   = source;
+    lexer->length   = strlen(source);
+    lexer->position = 0;
+    lexer->line     = 1;
+    lexer->column   = 1;
+
+    lexer->I = I;          // <<— NUEVO
+    lexer->S = *S;         // <<— NUEVO (o guarda el puntero si elegiste puntero en el .h)
+}
+
+
+void tokenize(Lexer *lexer, TokenList *list) {
+    Token token; // Declarar una sola variable token reutilizable
+
+    while (lexer->position < lexer->length) {
+        char current = lexer->source[lexer->position];
+
+        if (current == '/' && lexer->position + 1 < lexer->length) {
+            if (lexer->source[lexer->position + 1] == '/') { skip_line_comment(lexer); continue; }
+            if (lexer->source[lexer->position + 1] == '*') { skip_block_comment(lexer); continue; }
+        }
+
+        if (is_space(current)) {
+            // Saltar espacios en blanco sin crear token
+            if (current == '\n') {
+                lexer->line++;
+                lexer->column = 1;
+            } else {
+                lexer->column++;
+            }
+            lexer->position++;
+            continue;
+        }
+        
+        init_token(&token); // Inicializar antes de usar
+
+        if (is_alpha(current)) {
+            identify_identifier(lexer, &token);
+        } else if (is_digit(current)) {
+            identify_number(lexer, &token);
+        } else if (current == '"' || current == '\'') {
+            identify_literal(lexer, &token);
+        } else if (is_operator(current)) {
+            identify_operator(lexer, &token);
+        } else if (is_delimiter(current)) {
+            identify_delimiter(lexer, &token);
+        } else {
+            // Caracteres no reconocidos: crear token de error y avanzar 1 posición
+            token.type = TOK_ERROR;
+            token.lexeme = interner_intern_slice(lexer->I, lexer->source + lexer->position, 1);
+            token.length = 1;
+            token.line = lexer->line;
+            token.column = lexer->column;
+            
+            // Reportar error de carácter no válido
+            DiagLocation loc = diag_location_create(lexer->line, lexer->column, 1, token.lexeme);
+            diag_error(STAGE_LEXER, 1001, loc, NULL);
+
+            // Avanzar manualmente al siguiente carácter
+            lexer->position++;
+            lexer->column++;
+        }
+
+        add_token(list, token);
+
+        // Nota: NO actualizamos lexer->position/line/column aquí por defecto.
+        // Cada función identify_* y skip_* deja la posición en el siguiente carácter a procesar.
+    }
+}

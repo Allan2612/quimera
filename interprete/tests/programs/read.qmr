@@ -1,0 +1,7 @@
+Integer n;
+String nombre;
+Read(n);
+Read(nombre);
+Print(n + 1);
+Print("Hola " + nombre);
+Print(nombre == "Ana");

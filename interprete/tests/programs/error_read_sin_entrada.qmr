@@ -1,0 +1,3 @@
+Integer n;
+Read(n);
+Print(n);
