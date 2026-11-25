@@ -44,7 +44,7 @@ jobs:
         run: npm run build:wasm
       - name: El WebAssembly del repo coincide con el código en C
         run: |
-          git diff --exit-code -- src/wasm || {
+          git -c core.fileMode=false diff --exit-code -- src/wasm || {
             echo "::error::src/wasm no coincide con interprete/. Corre 'npm run build:wasm' y súbelo."
             exit 1
           }
