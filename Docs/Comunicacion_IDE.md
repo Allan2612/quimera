@@ -79,6 +79,7 @@ Este documento describe el nuevo sistema de comunicación en tiempo real entre e
 - `4003`: Operación no válida entre tipos
 - `4004`: Stack overflow
 - `4005`: Valor nulo accedido
+- `4006`: No hay más datos de entrada (`Read` sin entrada disponible)
 
 **Errores del Sistema (5000-5999)**
 - `5001`: Error al abrir archivo

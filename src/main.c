@@ -66,6 +66,11 @@ int main(int argc, char *argv[]) {
 
     char *source = NULL;
     size_t len = 0;
+    int exit_code = 1;  // 0 solo si el programa se analizó y ejecutó sin errores
+
+    // Antes de cualquier `goto cleanup`: cleanup libera la lista y no debe ver basura
+    TokenList tokens;
+    init_token_list(&tokens);
 
     if (interactive_mode) {
         // Modo interactivo - leer desde archivo temporal del IDE
@@ -91,13 +96,10 @@ int main(int argc, char *argv[]) {
     init_lexer(&lexer, source, &interner, &symbols);
 
     // Tokenizar
-    TokenList tokens;
-    init_token_list(&tokens);
     tokenize(&lexer, &tokens);
 
     if (tokens.count == 0) {
         output_program_error("No se generaron tokens");
-        free(source);
         goto cleanup;
     }
 
@@ -116,7 +118,6 @@ int main(int argc, char *argv[]) {
     
     if (!program) {
         output_program_error("Error crítico durante el análisis sintáctico");
-        free(source);
         goto cleanup;
     }
 
@@ -139,7 +140,6 @@ int main(int argc, char *argv[]) {
             output_program_error("Error durante el análisis semántico");
         }
         analyzer_destroy(&analyzer);
-        free(source);
         goto cleanup;
     }
 
@@ -151,6 +151,8 @@ int main(int argc, char *argv[]) {
 
     if (result.flow == FLOW_ERROR || ctx.has_error) {
         output_program_error("Error durante la ejecución del programa");
+    } else {
+        exit_code = 0;
     }
 
     // Limpiar analizador
@@ -164,5 +166,5 @@ cleanup:
     ast_arena_free(arena);
     diag_shutdown();
 
-    return 0;
+    return exit_code;
 }

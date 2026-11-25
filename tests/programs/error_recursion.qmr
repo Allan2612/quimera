@@ -1,0 +1,4 @@
+Integer f(Integer n)
+  Return f(n + 1);
+End
+Print(f(0));

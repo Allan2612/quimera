@@ -91,6 +91,11 @@ test: tests
 	done; \
 	echo "Ran $$total test executables; FAILS=$$fails"
 
+# Programas completos (tests/programs/*.qmr contra su .expected)
+.PHONY: test-programs
+test-programs: $(APP)
+	@bash tests/run_programs.sh $(APP)
+
 # Targets para ejecutar solo un subconjunto de tests por patrón en el nombre
 .PHONY: test-% testlex
 

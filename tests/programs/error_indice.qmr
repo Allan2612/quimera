@@ -1,0 +1,3 @@
+Integer a[2];
+Print(a[5]);
+Print("no debe llegar aquí");

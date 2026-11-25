@@ -663,8 +663,12 @@ static AstNode *parse_array_declaration(Parser *p) {
         }
     } else {
         // Solo declaración con tamaño: Integer x[5];
-        // No poner size_expr como init, el tamaño se maneja separadamente
-        array_decl->as.var_decl.init = NULL;
+        // Se guarda igual que con valores ([tamaño, elementos]) pero sin elementos: el intérprete
+        // necesita el tamaño y el analizador espera esa forma
+        AstNode *init = make_node_span(p, AST_BLOCK, type_tok, name_tok);
+        list_push(p, &init->as.block.stmts, size_expr);
+        list_push(p, &init->as.block.stmts, make_node_span(p, AST_BLOCK, type_tok, name_tok));
+        array_decl->as.var_decl.init = init;
     }
     
     expect_delim(p, ";");

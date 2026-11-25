@@ -58,6 +58,7 @@ static ErrorCodeDef error_codes[] = {
     {4003, "Operación no válida entre tipos"},
     {4004, "Stack overflow"},
     {4005, "Valor nulo accedido"},
+    {4006, "No hay más datos de entrada"},
     
     // Errores del sistema (5000-5999)
     {5001, "Error al abrir archivo: '%s'"},

@@ -1,0 +1,10 @@
+Integer List l {4, 5};
+l.append(6);
+Print(l.size());
+Print(l);
+l.remove(0);
+Print(l);
+Print(l[0]);
+Integer List vacia;
+vacia.append(1);
+Print(vacia);

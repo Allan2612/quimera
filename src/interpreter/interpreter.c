@@ -38,6 +38,31 @@ Value value_char(char val) {
     return v;
 }
 
+Value value_list(ListObj *list) {
+    Value v = { .type = VAL_LIST, .as.list = list };
+    return v;
+}
+
+/* Los literales guardan sus comillas ("\"Hola\"") y la concatenación no: comparar el contenido */
+static const char *string_content(const char *s, size_t *len) {
+    size_t n = strlen(s);
+    if (n >= 2 && s[0] == '"' && s[n - 1] == '"') {
+        *len = n - 2;
+        return s + 1;
+    }
+    *len = n;
+    return s;
+}
+
+static int string_compare(const char *a, const char *b) {
+    size_t la, lb;
+    const char *ca = string_content(a, &la);
+    const char *cb = string_content(b, &lb);
+    int c = memcmp(ca, cb, la < lb ? la : lb);
+    if (c != 0) return c;
+    return (la > lb) - (la < lb);
+}
+
 const char* value_type_name(ValueType type) {
     switch (type) {
         case VAL_NULL: return "Null";
@@ -66,7 +91,7 @@ bool value_is_truthy(const Value *val) {
         case VAL_CHAR:
             return val->as.char_val != '\0';
         case VAL_LIST:
-            return val->as.list.count > 0;
+            return val->as.list && val->as.list->count > 0;
         default:
             return true;
     }
@@ -94,14 +119,14 @@ bool value_equals(const Value *a, const Value *b) {
         case VAL_FLOAT:
             return a->as.float_val == b->as.float_val;
         case VAL_STRING:
-            return strcmp(a->as.string, b->as.string) == 0;
+            return string_compare(a->as.string, b->as.string) == 0;
         case VAL_BOOLEAN:
             return a->as.boolean == b->as.boolean;
         case VAL_CHAR:
             return a->as.char_val == b->as.char_val;
         case VAL_LIST:
-            // Comparación básica por referencia por ahora
-            return &a->as.list == &b->as.list;
+            // Misma lista (referencia)
+            return a->as.list == b->as.list;
         default:
             return false;
     }
@@ -134,8 +159,10 @@ int value_compare(const Value *a, const Value *b) {
             if (a->as.float_val < b->as.float_val) return -1;
             if (a->as.float_val > b->as.float_val) return 1;
             return 0;
-        case VAL_STRING:
-            return strcmp(a->as.string, b->as.string);
+        case VAL_STRING: {
+            int c = string_compare(a->as.string, b->as.string);
+            return (c > 0) - (c < 0);
+        }
         case VAL_CHAR:
             if (a->as.char_val < b->as.char_val) return -1;
             if (a->as.char_val > b->as.char_val) return 1;
@@ -154,6 +181,16 @@ Value value_add(const Value *a, const Value *b) {
     if (b->type == VAL_NULL) {
         if (a->type == VAL_STRING) return value_string("");
         return value_integer(0);
+    }
+
+    // Char con String: el Char pasa a ser un texto de un carácter
+    if ((a->type == VAL_CHAR && b->type == VAL_STRING) ||
+        (a->type == VAL_STRING && b->type == VAL_CHAR)) {
+        char ca[2] = { a->type == VAL_CHAR ? a->as.char_val : '\0', '\0' };
+        char cb[2] = { b->type == VAL_CHAR ? b->as.char_val : '\0', '\0' };
+        Value sa = a->type == VAL_CHAR ? value_string(ca) : *a;
+        Value sb = b->type == VAL_CHAR ? value_string(cb) : *b;
+        return value_add(&sa, &sb);  /* la concatenación copia el resultado */
     }
 
     // Promoción numérica
@@ -354,6 +391,68 @@ Value value_not(const Value *val) {
     return value_boolean(!value_is_truthy(val));
 }
 
+/* Agrega texto a buf sin pasarse de cap (si no cabe, termina en "...") */
+static void buf_append(char *buf, size_t cap, size_t *pos, const char *text, size_t n) {
+    if (*pos >= cap - 1) return;
+    size_t room = cap - 1 - *pos;
+    if (n > room) {
+        memcpy(buf + *pos, text, room);
+        *pos += room;
+        if (cap >= 4) memcpy(buf + cap - 4, "...", 3);
+    } else {
+        memcpy(buf + *pos, text, n);
+        *pos += n;
+    }
+    buf[*pos] = '\0';
+}
+
+static void value_format_into(const Value *val, char *buf, size_t cap, size_t *pos) {
+    char tmp[64];
+    switch (val->type) {
+        case VAL_NULL: buf_append(buf, cap, pos, "null", 4); break;
+        case VAL_INTEGER: {
+            int n = snprintf(tmp, sizeof(tmp), "%ld", val->as.integer);
+            buf_append(buf, cap, pos, tmp, (size_t)n);
+            break;
+        }
+        case VAL_FLOAT: {
+            int n = snprintf(tmp, sizeof(tmp), "%g", val->as.float_val);
+            buf_append(buf, cap, pos, tmp, (size_t)n);
+            break;
+        }
+        case VAL_STRING: {
+            size_t n;
+            const char *c = string_content(val->as.string, &n);
+            buf_append(buf, cap, pos, c, n);
+            break;
+        }
+        case VAL_BOOLEAN:
+            buf_append(buf, cap, pos, val->as.boolean ? "true" : "false", val->as.boolean ? 4 : 5);
+            break;
+        case VAL_CHAR:
+            if (val->as.char_val) buf_append(buf, cap, pos, &val->as.char_val, 1);
+            break;
+        case VAL_LIST: {
+            buf_append(buf, cap, pos, "[", 1);
+            const ListObj *l = val->as.list;
+            for (size_t i = 0; l && i < l->count; i++) {
+                if (i > 0) buf_append(buf, cap, pos, ", ", 2);
+                value_format_into(&l->items[i], buf, cap, pos);
+            }
+            buf_append(buf, cap, pos, "]", 1);
+            break;
+        }
+        default: buf_append(buf, cap, pos, "<unknown>", 9); break;
+    }
+}
+
+void value_format(const Value *val, char *buf, size_t cap) {
+    if (!buf || cap == 0) return;
+    size_t pos = 0;
+    buf[0] = '\0';
+    value_format_into(val, buf, cap, &pos);
+}
+
 void value_print(const Value *val) {
     char buffer[512];
     
@@ -397,7 +496,7 @@ void value_print(const Value *val) {
             output_program_value(buffer, "char");
             break;
         case VAL_LIST:
-            snprintf(buffer, sizeof(buffer), "[List with %zu elements]", val->as.list.count);
+            value_format(val, buffer, sizeof(buffer));
             output_program_value(buffer, "list");
             break;
         default:
@@ -416,10 +515,12 @@ Scope* scope_new(Scope *parent) {
     scope->capacity = 8;
     scope->names = calloc(scope->capacity, sizeof(const char*));
     scope->values = calloc(scope->capacity, sizeof(Value));
-    
-    if (!scope->names || !scope->values) {
+    scope->types = calloc(scope->capacity, sizeof(const char*));
+
+    if (!scope->names || !scope->values || !scope->types) {
         free(scope->names);
         free(scope->values);
+        free(scope->types);
         free(scope);
         return NULL;
     }
@@ -431,6 +532,7 @@ void scope_destroy(Scope *scope) {
     if (!scope) return;
     free(scope->names);
     free(scope->values);
+    free(scope->types);
     free(scope);
 }
 
@@ -449,18 +551,40 @@ void scope_define(Scope *scope, const char *name, Value value) {
     if (scope->count >= scope->capacity) {
         size_t new_cap = scope->capacity * 2;
         const char **new_names = realloc(scope->names, new_cap * sizeof(const char*));
+        if (new_names) scope->names = new_names;
         Value *new_values = realloc(scope->values, new_cap * sizeof(Value));
+        if (new_values) scope->values = new_values;
+        const char **new_types = realloc(scope->types, new_cap * sizeof(const char*));
+        if (new_types) scope->types = new_types;
+
+        if (!new_names || !new_values || !new_types) return;
         
-        if (!new_names || !new_values) return;
-        
-        scope->names = new_names;
-        scope->values = new_values;
         scope->capacity = new_cap;
     }
 
     scope->names[scope->count] = name;
     scope->values[scope->count] = value;
+    scope->types[scope->count] = NULL;
     scope->count++;
+}
+
+void scope_set_type(Scope *scope, const char *name, const char *type_name) {
+    if (!scope) return;
+    for (size_t i = 0; i < scope->count; i++) {
+        if (scope->names[i] == name) {
+            scope->types[i] = type_name;
+            return;
+        }
+    }
+}
+
+const char *scope_lookup_type(Scope *scope, const char *name) {
+    for (Scope *s = scope; s; s = s->parent) {
+        for (size_t i = 0; i < s->count; i++) {
+            if (s->names[i] == name) return s->types[i];
+        }
+    }
+    return NULL;
 }
 
 Value* scope_lookup(Scope *scope, const char *name) {
@@ -496,6 +620,11 @@ void interpreter_init(InterpreterContext *ctx, AstArena *arena,
     ctx->global_scope = scope_new(NULL);
     ctx->current_scope = ctx->global_scope;
     ctx->has_error = false;
+    ctx->functions = NULL;
+    ctx->function_count = 0;
+    ctx->function_capacity = 0;
+    ctx->lists = NULL;
+    ctx->call_depth = 0;
 }
 
 void interpreter_destroy(InterpreterContext *ctx) {
@@ -507,9 +636,28 @@ void interpreter_destroy(InterpreterContext *ctx) {
     }
     ctx->global_scope = NULL;
     ctx->current_scope = NULL;
+
+    free(ctx->functions);
+    ctx->functions = NULL;
+    ctx->function_count = ctx->function_capacity = 0;
+
+    for (ListObj *l = ctx->lists; l;) {
+        ListObj *next = l->next_alloc;
+        free(l->items);
+        free(l);
+        l = next;
+    }
+    ctx->lists = NULL;
 }
 
 /* ============ Evaluación de nodos ============ */
+
+/* Definidas más abajo, junto a funciones, arreglos y Read */
+static EvalResult runtime_error(InterpreterContext *ctx, AstNode *node, int code, const char *msg);
+static Value default_value_for(const char *type_name);
+static EvalResult eval_collection_decl(InterpreterContext *ctx, AstNode *node, const char *type_name,
+                                       bool is_array);
+static EvalResult resolve_index(InterpreterContext *ctx, AstNode *node, Value **slot);
 
 static EvalResult eval_literal(InterpreterContext *ctx, AstNode *node) {
     EvalResult result = { .flow = FLOW_NORMAL };
@@ -681,11 +829,24 @@ static EvalResult eval_unary_op(InterpreterContext *ctx, AstNode *node) {
 static EvalResult eval_assignment(InterpreterContext *ctx, AstNode *node) {
     EvalResult result = { .flow = FLOW_NORMAL };
     
-    // Solo soportamos asignación a identificadores por ahora
-    if (node->as.assign.lhs->kind != AST_IDENT) {
-        result.value = value_null();
-        result.flow = FLOW_ERROR;
+    // Asignación a un elemento: a[i] = x, a[i] += x
+    if (node->as.assign.lhs->kind == AST_INDEX) {
+        /* Primero el lado derecho: puede agregar elementos y mover la memoria de la lista */
+        EvalResult rhs = interpret_node(ctx, node->as.assign.rhs);
+        if (rhs.flow != FLOW_NORMAL) return rhs;
+        Value *slot = NULL;
+        EvalResult target = resolve_index(ctx, node->as.assign.lhs, &slot);
+        if (target.flow != FLOW_NORMAL) return target;
+        Value final_value = rhs.value;
+        if (node->as.assign.op == OP_ADD_ASSIGN) final_value = value_add(slot, &rhs.value);
+        else if (node->as.assign.op == OP_SUB_ASSIGN) final_value = value_subtract(slot, &rhs.value);
+        *slot = final_value;
+        result.value = final_value;
         return result;
+    }
+
+    if (node->as.assign.lhs->kind != AST_IDENT) {
+        return runtime_error(ctx, node, 3004, NULL);
     }
     
     const char *name = node->as.assign.lhs->as.ident.lexeme;
@@ -731,7 +892,16 @@ static EvalResult eval_assignment(InterpreterContext *ctx, AstNode *node) {
 static EvalResult eval_var_decl(InterpreterContext *ctx, AstNode *node) {
     EvalResult result = { .flow = FLOW_NORMAL };
     
+    const char *type_name = node->as.var_decl.type_name;
+    if (type_name && strncmp(type_name, "Array:", 6) == 0) {
+        return eval_collection_decl(ctx, node, type_name, true);
+    }
+    if (type_name && strncmp(type_name, "List:", 5) == 0) {
+        return eval_collection_decl(ctx, node, type_name, false);
+    }
+
     const char *name = interner_intern_cstr(ctx->interner, node->as.var_decl.name);
+    /* Sin valor inicial queda en Null (Docs/Semantica.md); se guarda el tipo para Read */
     Value init_value = value_null();
     
     if (node->as.var_decl.init) {
@@ -741,6 +911,7 @@ static EvalResult eval_var_decl(InterpreterContext *ctx, AstNode *node) {
     }
     
     scope_define(ctx->current_scope, name, init_value);
+    scope_set_type(ctx->current_scope, name, type_name);
     result.value = init_value;
     
     return result;
@@ -761,46 +932,9 @@ static EvalResult eval_print(InterpreterContext *ctx, AstNode *node) {
         EvalResult expr_result = interpret_node(ctx, node->as.print.exprs.data[i]);
         if (expr_result.flow != FLOW_NORMAL) return expr_result;
         
-        // Convertir el valor a string y agregarlo al buffer
-        char value_str[512];
-        const Value *val = &expr_result.value;
-        
-        switch (val->type) {
-            case VAL_NULL:
-                strncpy(value_str, "null", sizeof(value_str) - 1);
-                break;
-            case VAL_INTEGER:
-                snprintf(value_str, sizeof(value_str), "%ld", val->as.integer);
-                break;
-            case VAL_FLOAT:
-                snprintf(value_str, sizeof(value_str), "%g", val->as.float_val);
-                break;
-            case VAL_STRING: {
-                const char *str = val->as.string;
-                size_t len = strlen(str);
-                if (len >= 2 && str[0] == '"' && str[len-1] == '"') {
-                    // Remover comillas
-                    strncpy(value_str, str + 1, len - 2);
-                    value_str[len - 2] = '\0';
-                } else {
-                    strncpy(value_str, str, sizeof(value_str) - 1);
-                }
-                break;
-            }
-            case VAL_BOOLEAN:
-                strncpy(value_str, val->as.boolean ? "true" : "false", sizeof(value_str) - 1);
-                break;
-            case VAL_CHAR:
-                snprintf(value_str, sizeof(value_str), "%c", val->as.char_val);
-                break;
-            case VAL_LIST:
-                snprintf(value_str, sizeof(value_str), "[List with %zu elements]", val->as.list.count);
-                break;
-            default:
-                strncpy(value_str, "<unknown>", sizeof(value_str) - 1);
-                break;
-        }
-        value_str[sizeof(value_str) - 1] = '\0';
+        // Convertir el valor a texto (listas como [1, 2, 3]) y agregarlo al buffer
+        char value_str[1024];
+        value_format(&expr_result.value, value_str, sizeof(value_str));
         
         // Agregar al buffer
         size_t value_len = strlen(value_str);
@@ -991,6 +1125,412 @@ static EvalResult eval_return(InterpreterContext *ctx, AstNode *node) {
     return result;
 }
 
+/* ============ Errores de ejecución, valores por defecto y listas ============ */
+
+/* Límites para que un programa no tumbe al intérprete (sobre todo en el navegador) */
+#define MAX_CALL_DEPTH 400
+#define MAX_ARRAY_SIZE 1000000
+#define MAX_READ_LINE 1024
+
+static EvalResult runtime_error(InterpreterContext *ctx, AstNode *node, int code, const char *msg) {
+    DiagLocation loc = diag_location_simple(node ? node->span.line_start : 0, node ? node->span.col_start : 0);
+    diag_error(STAGE_RUNTIME, code, loc, msg);
+    ctx->has_error = true;
+    EvalResult r = { .flow = FLOW_ERROR, .value = value_null() };
+    return r;
+}
+
+/* Valor inicial de una variable declarada sin valor (Read necesita saber el tipo) */
+static Value default_value_for(const char *type_name) {
+    if (!type_name) return value_null();
+    if (strcmp(type_name, "Integer") == 0) return value_integer(0);
+    if (strcmp(type_name, "Float") == 0) return value_float(0.0);
+    if (strcmp(type_name, "Boolean") == 0) return value_boolean(false);
+    if (strcmp(type_name, "String") == 0) return value_string("");
+    if (strcmp(type_name, "Char") == 0) return value_char('\0');
+    return value_null();
+}
+
+static ListObj *list_new(InterpreterContext *ctx, size_t capacity, bool fixed) {
+    ListObj *l = calloc(1, sizeof(ListObj));
+    if (!l) return NULL;
+    if (capacity > 0) {
+        l->items = calloc(capacity, sizeof(Value));
+        if (!l->items) {
+            free(l);
+            return NULL;
+        }
+    }
+    l->capacity = capacity;
+    l->fixed = fixed;
+    l->next_alloc = ctx->lists;
+    ctx->lists = l;
+    return l;
+}
+
+static bool list_push_value(ListObj *l, Value v) {
+    if (l->count >= l->capacity) {
+        size_t cap = l->capacity ? l->capacity * 2 : 4;
+        Value *items = realloc(l->items, cap * sizeof(Value));
+        if (!items) return false;
+        l->items = items;
+        l->capacity = cap;
+    }
+    l->items[l->count++] = v;
+    return true;
+}
+
+/* ============ Funciones ============ */
+
+static AstNode *find_function(InterpreterContext *ctx, const char *name) {
+    for (size_t i = 0; i < ctx->function_count; i++) {
+        if (ctx->functions[i].name == name) return ctx->functions[i].decl;
+    }
+    return NULL;
+}
+
+static EvalResult eval_func_decl(InterpreterContext *ctx, AstNode *node) {
+    EvalResult result = { .flow = FLOW_NORMAL, .value = value_null() };
+    const char *name = interner_intern_cstr(ctx->interner, node->as.func_decl.name);
+    for (size_t i = 0; i < ctx->function_count; i++) {
+        if (ctx->functions[i].name == name) {
+            ctx->functions[i].decl = node;
+            return result;
+        }
+    }
+    if (ctx->function_count >= ctx->function_capacity) {
+        size_t cap = ctx->function_capacity ? ctx->function_capacity * 2 : 8;
+        FunctionEntry *f = realloc(ctx->functions, cap * sizeof(FunctionEntry));
+        if (!f) return runtime_error(ctx, node, 5002, NULL);
+        ctx->functions = f;
+        ctx->function_capacity = cap;
+    }
+    ctx->functions[ctx->function_count].name = name;
+    ctx->functions[ctx->function_count].decl = node;
+    ctx->function_count++;
+    return result;
+}
+
+static EvalResult call_user_function(InterpreterContext *ctx, AstNode *call, AstNode *fn) {
+    AstList *params = &fn->as.func_decl.params;
+    AstList *args = &call->as.call.args;
+
+    if (params->count != args->count) {
+        char msg[160];
+        snprintf(msg, sizeof(msg), "'%s' espera %zu argumento(s) y recibió %zu",
+                 fn->as.func_decl.name, params->count, args->count);
+        return runtime_error(ctx, call, 3006, msg);
+    }
+    if (ctx->call_depth >= MAX_CALL_DEPTH) {
+        return runtime_error(ctx, call, 4004,
+                             "Demasiadas llamadas anidadas (¿recursión sin caso base?)");
+    }
+
+    /* Los argumentos se evalúan en el scope de quien llama */
+    Value *values = NULL;
+    if (args->count > 0) {
+        values = malloc(args->count * sizeof(Value));
+        if (!values) return runtime_error(ctx, call, 5002, NULL);
+    }
+    for (size_t i = 0; i < args->count; i++) {
+        EvalResult a = interpret_node(ctx, args->data[i]);
+        if (a.flow != FLOW_NORMAL) {
+            free(values);
+            return a;
+        }
+        values[i] = a.value;
+    }
+
+    /* La función ve las variables globales, no las locales de quien la llama */
+    Scope *fn_scope = scope_new(ctx->global_scope);
+    if (!fn_scope) {
+        free(values);
+        return runtime_error(ctx, call, 5002, NULL);
+    }
+    for (size_t i = 0; i < params->count; i++) {
+        AstNode *param = params->data[i];
+        const char *pname = interner_intern_cstr(ctx->interner, param->as.param.name);
+        scope_define(fn_scope, pname, values[i]);
+        scope_set_type(fn_scope, pname, param->as.param.type_name);
+    }
+    free(values);
+
+    Scope *prev = ctx->current_scope;
+    ctx->current_scope = fn_scope;
+    ctx->call_depth++;
+    EvalResult body = interpret_node(ctx, fn->as.func_decl.body);
+    ctx->call_depth--;
+    ctx->current_scope = prev;
+    scope_destroy(fn_scope);
+
+    EvalResult result = { .flow = FLOW_NORMAL, .value = value_null() };
+    if (body.flow == FLOW_ERROR) return body;
+    if (body.flow == FLOW_RETURN) result.value = body.value;
+    return result;
+}
+
+/* size(), append() y remove() de listas: el parser los convierte en llamadas cuyo primer
+   argumento es la lista */
+static EvalResult call_list_method(InterpreterContext *ctx, AstNode *call, const char *method) {
+    AstList *args = &call->as.call.args;
+    if (args->count < 1) return runtime_error(ctx, call, 3006, NULL);
+
+    EvalResult target = interpret_node(ctx, args->data[0]);
+    if (target.flow != FLOW_NORMAL) return target;
+    if (target.value.type != VAL_LIST || !target.value.as.list) {
+        char msg[96];
+        snprintf(msg, sizeof(msg), "%s() solo se puede usar con listas", method);
+        return runtime_error(ctx, call, 4003, msg);
+    }
+    ListObj *l = target.value.as.list;
+    EvalResult result = { .flow = FLOW_NORMAL, .value = value_null() };
+
+    if (strcmp(method, "size") == 0) {
+        result.value = value_integer((long)l->count);
+        return result;
+    }
+
+    if (args->count < 2) return runtime_error(ctx, call, 3006, NULL);
+    if (l->fixed) {
+        return runtime_error(ctx, call, 4003,
+                             "Un arreglo tiene tamaño fijo: usa List para agregar o quitar elementos");
+    }
+    EvalResult arg = interpret_node(ctx, args->data[1]);
+    if (arg.flow != FLOW_NORMAL) return arg;
+
+    if (strcmp(method, "append") == 0) {
+        if (!list_push_value(l, arg.value)) return runtime_error(ctx, call, 5002, NULL);
+        return result;
+    }
+
+    /* remove(índice) */
+    if (arg.value.type != VAL_INTEGER) {
+        return runtime_error(ctx, call, 4003, "remove() recibe la posición (Integer) a quitar");
+    }
+    long i = arg.value.as.integer;
+    if (i < 0 || (size_t)i >= l->count) {
+        char msg[96];
+        snprintf(msg, sizeof(msg), "Índice %ld fuera de rango (la lista tiene %zu elementos)", i, l->count);
+        return runtime_error(ctx, call, 4002, msg);
+    }
+    memmove(&l->items[i], &l->items[i + 1], (l->count - (size_t)i - 1) * sizeof(Value));
+    l->count--;
+    return result;
+}
+
+static EvalResult eval_call(InterpreterContext *ctx, AstNode *node) {
+    AstNode *callee = node->as.call.callee;
+    if (!callee || callee->kind != AST_IDENT) {
+        return runtime_error(ctx, node, 4003, "Solo se pueden llamar funciones por su nombre");
+    }
+    const char *name = interner_intern_cstr(ctx->interner, callee->as.ident.lexeme);
+
+    AstNode *fn = find_function(ctx, name);
+    if (fn) return call_user_function(ctx, node, fn);
+
+    if (strcmp(name, "size") == 0 || strcmp(name, "append") == 0 || strcmp(name, "remove") == 0) {
+        return call_list_method(ctx, node, name);
+    }
+
+    DiagLocation loc = diag_location_create(node->span.line_start, node->span.col_start,
+                                            strlen(name), name);
+    diag_error(STAGE_SEMANTIC, 3005, loc, NULL);
+    ctx->has_error = true;
+    EvalResult r = { .flow = FLOW_ERROR, .value = value_null() };
+    return r;
+}
+
+/* ============ Indexación ============ */
+
+/* Deja en *slot la posición del elemento base[índice] de un arreglo o lista */
+static EvalResult resolve_index(InterpreterContext *ctx, AstNode *node, Value **slot) {
+    EvalResult base = interpret_node(ctx, node->as.index.base);
+    if (base.flow != FLOW_NORMAL) return base;
+    EvalResult idx = interpret_node(ctx, node->as.index.index);
+    if (idx.flow != FLOW_NORMAL) return idx;
+
+    if (idx.value.type != VAL_INTEGER) {
+        return runtime_error(ctx, node, 4003, "El índice debe ser un Integer");
+    }
+    if (base.value.type != VAL_LIST || !base.value.as.list) {
+        return runtime_error(ctx, node, 4003, "Solo se pueden indexar arreglos y listas");
+    }
+    ListObj *l = base.value.as.list;
+    long i = idx.value.as.integer;
+    if (i < 0 || (size_t)i >= l->count) {
+        char msg[96];
+        snprintf(msg, sizeof(msg), "Índice %ld fuera de rango (tiene %zu elementos)", i, l->count);
+        return runtime_error(ctx, node, 4002, msg);
+    }
+    *slot = &l->items[i];
+    EvalResult ok = { .flow = FLOW_NORMAL, .value = **slot };
+    return ok;
+}
+
+static EvalResult eval_index(InterpreterContext *ctx, AstNode *node) {
+    /* Texto[i] devuelve el Char en esa posición */
+    EvalResult base = interpret_node(ctx, node->as.index.base);
+    if (base.flow != FLOW_NORMAL) return base;
+    if (base.value.type == VAL_STRING) {
+        EvalResult idx = interpret_node(ctx, node->as.index.index);
+        if (idx.flow != FLOW_NORMAL) return idx;
+        if (idx.value.type != VAL_INTEGER) {
+            return runtime_error(ctx, node, 4003, "El índice debe ser un Integer");
+        }
+        size_t n;
+        const char *c = string_content(base.value.as.string, &n);
+        long i = idx.value.as.integer;
+        if (i < 0 || (size_t)i >= n) {
+            char msg[96];
+            snprintf(msg, sizeof(msg), "Índice %ld fuera de rango (el texto tiene %zu caracteres)", i, n);
+            return runtime_error(ctx, node, 4002, msg);
+        }
+        EvalResult r = { .flow = FLOW_NORMAL, .value = value_char(c[i]) };
+        return r;
+    }
+    Value *slot = NULL;
+    return resolve_index(ctx, node, &slot);
+}
+
+/* ============ Declaración de arreglos y listas ============ */
+
+static EvalResult eval_collection_decl(InterpreterContext *ctx, AstNode *node, const char *type_name,
+                                       bool is_array) {
+    const char *element_type = type_name + (is_array ? 6 : 5); /* tras "Array:" / "List:" */
+    AstNode *init = node->as.var_decl.init;
+    AstList *elements = NULL;
+    size_t size = 0;
+
+    if (is_array) {
+        /* init = BLOQUE [tamaño, BLOQUE de elementos] */
+        if (!init || init->kind != AST_BLOCK || init->as.block.stmts.count < 1) {
+            return runtime_error(ctx, node, 4003, "Falta el tamaño del arreglo");
+        }
+        EvalResult sz = interpret_node(ctx, init->as.block.stmts.data[0]);
+        if (sz.flow != FLOW_NORMAL) return sz;
+        if (sz.value.type != VAL_INTEGER || sz.value.as.integer < 0) {
+            return runtime_error(ctx, node, 4003, "El tamaño del arreglo debe ser un Integer no negativo");
+        }
+        if (sz.value.as.integer > MAX_ARRAY_SIZE) {
+            return runtime_error(ctx, node, 4003, "El arreglo es demasiado grande (máximo 1000000)");
+        }
+        size = (size_t)sz.value.as.integer;
+        if (init->as.block.stmts.count >= 2 && init->as.block.stmts.data[1]) {
+            elements = &init->as.block.stmts.data[1]->as.block.stmts;
+        }
+        if (elements && elements->count > size) {
+            char msg[128];
+            snprintf(msg, sizeof(msg), "El arreglo tiene tamaño %zu pero se le dieron %zu valores",
+                     size, elements->count);
+            return runtime_error(ctx, node, 4002, msg);
+        }
+    } else if (init && init->kind == AST_BLOCK) {
+        elements = &init->as.block.stmts;
+    }
+
+    size_t count = elements ? elements->count : 0;
+    ListObj *l = list_new(ctx, is_array ? size : (count > 4 ? count : 4), is_array);
+    if (!l) return runtime_error(ctx, node, 5002, NULL);
+
+    if (is_array) {
+        for (size_t i = 0; i < size; i++) l->items[i] = default_value_for(element_type);
+        l->count = size;
+    }
+    for (size_t i = 0; i < count; i++) {
+        EvalResult e = interpret_node(ctx, elements->data[i]);
+        if (e.flow != FLOW_NORMAL) return e;
+        if (is_array) {
+            l->items[i] = e.value;
+        } else if (!list_push_value(l, e.value)) {
+            return runtime_error(ctx, node, 5002, NULL);
+        }
+    }
+
+    const char *name = interner_intern_cstr(ctx->interner, node->as.var_decl.name);
+    scope_define(ctx->current_scope, name, value_list(l));
+    EvalResult r = { .flow = FLOW_NORMAL, .value = value_list(l) };
+    return r;
+}
+
+/* ============ Read ============ */
+
+static EvalResult store_read_value(InterpreterContext *ctx, AstNode *target, Value *slot,
+                                   const char *text) {
+    char *end = NULL;
+    switch (slot->type) {
+        case VAL_INTEGER: {
+            long v = strtol(text, &end, 10);
+            if (end == text || *end != '\0') break;
+            *slot = value_integer(v);
+            return (EvalResult){ .flow = FLOW_NORMAL, .value = *slot };
+        }
+        case VAL_FLOAT: {
+            double v = strtod(text, &end);
+            if (end == text || *end != '\0') break;
+            *slot = value_float(v);
+            return (EvalResult){ .flow = FLOW_NORMAL, .value = *slot };
+        }
+        case VAL_BOOLEAN:
+            if (strcmp(text, "True") == 0 || strcmp(text, "true") == 0) {
+                *slot = value_boolean(true);
+            } else if (strcmp(text, "False") == 0 || strcmp(text, "false") == 0) {
+                *slot = value_boolean(false);
+            } else {
+                break;
+            }
+            return (EvalResult){ .flow = FLOW_NORMAL, .value = *slot };
+        case VAL_CHAR:
+            if (strlen(text) != 1) break;
+            *slot = value_char(text[0]);
+            return (EvalResult){ .flow = FLOW_NORMAL, .value = *slot };
+        case VAL_STRING:
+        case VAL_NULL: {
+            /* Se guarda en la arena del AST: vive hasta el final del programa */
+            char *copy = ast_arena_strndup(ctx->arena, text, strlen(text));
+            if (!copy) return runtime_error(ctx, target, 5002, NULL);
+            *slot = value_string(copy);
+            return (EvalResult){ .flow = FLOW_NORMAL, .value = *slot };
+        }
+        default:
+            return runtime_error(ctx, target, 4003, "Read no puede leer arreglos ni listas");
+    }
+    char msg[MAX_READ_LINE + 64];
+    snprintf(msg, sizeof(msg), "Se esperaba un %s y se leyó \"%s\"", value_type_name(slot->type), text);
+    return runtime_error(ctx, target, 4003, msg);
+}
+
+static EvalResult eval_read(InterpreterContext *ctx, AstNode *node) {
+    EvalResult result = { .flow = FLOW_NORMAL, .value = value_null() };
+    for (size_t i = 0; i < node->as.read.targets.count; i++) {
+        AstNode *target = node->as.read.targets.data[i];
+        const char *name = interner_intern_cstr(ctx->interner, target->as.ident.lexeme);
+        Value *slot = scope_lookup(ctx->current_scope, name);
+        if (!slot) {
+            DiagLocation loc = diag_location_create(target->span.line_start, target->span.col_start,
+                                                    strlen(name), name);
+            diag_error(STAGE_SEMANTIC, 3001, loc, NULL);
+            ctx->has_error = true;
+            result.flow = FLOW_ERROR;
+            return result;
+        }
+
+        char line[MAX_READ_LINE];
+        if (!fgets(line, sizeof(line), stdin)) {
+            return runtime_error(ctx, target, 4006, "No hay más datos de entrada para Read");
+        }
+        line[strcspn(line, "\r\n")] = '\0';
+
+        if (slot->type == VAL_NULL) {
+            /* Sin valor todavía: tomar el tipo declarado (0 / 0.0 / False / "" solo indican el tipo) */
+            Value typed = default_value_for(scope_lookup_type(ctx->current_scope, name));
+            if (typed.type != VAL_NULL) *slot = typed;
+        }
+        result = store_read_value(ctx, target, slot, line);
+        if (result.flow != FLOW_NORMAL) return result;
+    }
+    return result;
+}
+
 EvalResult interpret_node(InterpreterContext *ctx, AstNode *node) {
     if (!node) {
         EvalResult result = { .flow = FLOW_NORMAL, .value = value_null() };
@@ -1025,12 +1565,15 @@ EvalResult interpret_node(InterpreterContext *ctx, AstNode *node) {
         case AST_EXPR:
             return interpret_node(ctx, node->as.expr.expr);
         
-        // TODO: Implementar casos faltantes
         case AST_FUNC_DECL:
-        case AST_PARAM:
-        case AST_READ:
+            return eval_func_decl(ctx, node);
         case AST_CALL:
+            return eval_call(ctx, node);
         case AST_INDEX:
+            return eval_index(ctx, node);
+        case AST_READ:
+            return eval_read(ctx, node);
+        case AST_PARAM:
         case AST_ERROR:
         default: {
             EvalResult result = { .flow = FLOW_NORMAL, .value = value_null() };

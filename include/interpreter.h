@@ -20,13 +20,15 @@ typedef enum {
     VAL_LIST
 } ValueType;
 
-/* Estructura para listas dinámicas */
-typedef struct {
+/* Arreglos y listas: objetos por referencia (como en Java o Python), así `l.append(x)` modifica
+   la variable y pasarlos a una función no los copia. El intérprete los libera todos al terminar. */
+typedef struct ListObj {
     struct Value *items;
     size_t count;
     size_t capacity;
-    ValueType element_type;  // tipo de elementos esperado
-} ListValue;
+    bool fixed;                  // arreglo: tamaño fijo, sin append/remove
+    struct ListObj *next_alloc;  // cadena de todas las listas creadas, para liberarlas
+} ListObj;
 
 /* Valor en tiempo de ejecución */
 typedef struct Value {
@@ -37,7 +39,7 @@ typedef struct Value {
         const char *string;
         bool boolean;
         char char_val;
-        ListValue list;
+        ListObj *list;
     } as;
 } Value;
 
@@ -60,10 +62,17 @@ typedef struct {
 typedef struct Scope {
     const char **names;      // nombres de variables (internados)
     Value *values;           // valores correspondientes
+    const char **types;      // tipo declarado de cada variable (Read lo usa si el valor es Null)
     size_t count;
     size_t capacity;
     struct Scope *parent;    // scope padre
 } Scope;
+
+/* Función declarada (nombre internado -> nodo AST_FUNC_DECL) */
+typedef struct {
+    const char *name;
+    struct AstNode *decl;
+} FunctionEntry;
 
 /* Context del intérprete */
 typedef struct {
@@ -73,6 +82,10 @@ typedef struct {
     Scope *global_scope;    // scope global
     Scope *current_scope;   // scope actual
     bool has_error;         // flag de error
+    FunctionEntry *functions;   // funciones declaradas
+    size_t function_count, function_capacity;
+    ListObj *lists;             // todas las listas/arreglos creados
+    int call_depth;             // llamadas anidadas en curso (límite contra recursión infinita)
 } InterpreterContext;
 
 /* API principal */
@@ -90,6 +103,10 @@ Value value_float(double val);
 Value value_string(const char *val);
 Value value_boolean(bool val);
 Value value_char(char val);
+Value value_list(ListObj *list);
+
+/* Texto de un valor tal como lo muestra Print (listas como [1, 2, 3]) */
+void value_format(const Value *val, char *buf, size_t cap);
 
 bool value_is_truthy(const Value *val);
 bool value_equals(const Value *a, const Value *b);
@@ -111,6 +128,8 @@ void scope_destroy(Scope *scope);
 void scope_define(Scope *scope, const char *name, Value value);
 Value* scope_lookup(Scope *scope, const char *name);
 bool scope_assign(Scope *scope, const char *name, Value value);
+void scope_set_type(Scope *scope, const char *name, const char *type_name);
+const char *scope_lookup_type(Scope *scope, const char *name);
 
 #ifdef __cplusplus
 }

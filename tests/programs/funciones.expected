@@ -1,0 +1,5 @@
+{"type":"output","content": "42","output_type":"text"}
+{"type":"output","content": "120","output_type":"text"}
+{"type":"output","content": "Hola Ana","output_type":"text"}
+{"type":"output","content": "2","output_type":"text"}
+exit=0

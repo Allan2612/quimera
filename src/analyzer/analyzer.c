@@ -408,6 +408,15 @@ TypeInfo validate_binary_operation(SemanticAnalyzer *analyzer, OpCode op, TypeIn
     
     switch (op) {
         case OP_ADD:
+            // Concatenación: String + String, y Char con String (el Char se convierte)
+            if ((left.base_type == TYPE_STRING || left.base_type == TYPE_CHAR) &&
+                (right.base_type == TYPE_STRING || right.base_type == TYPE_CHAR) &&
+                (left.base_type == TYPE_STRING || right.base_type == TYPE_STRING)) {
+                result = type_create_basic(TYPE_STRING, "String");
+                break;
+            }
+            // si no son textos, es suma numérica
+            /* fall through */
         case OP_SUB:
         case OP_MUL:
         case OP_DIV:
