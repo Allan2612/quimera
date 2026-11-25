@@ -83,8 +83,7 @@ Se ha implementado exitosamente un intérprete tree-walker para el lenguaje Quim
 
 ### 12. Otros
 - `Print` acepta varios valores separados por coma: `Print("x =", x);` imprime `x = 10`.
-- Literales `Char` (`'A'`, `'
-'`) y concatenación de `Char` con `String`.
+- Literales `Char` (`'A'`, `'\n'`) y concatenación de `Char` con `String`.
 - La comparación de textos compara el contenido, venga de un literal, de una concatenación o de `Read`.
 - La división o el módulo por cero cortan el programa (error 4001); si el divisor es un literal 0, lo detecta el análisis semántico.
 - El ejecutable devuelve 0 si el programa terminó bien y 1 si hubo errores.
