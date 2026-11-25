@@ -59,7 +59,7 @@ typedef struct {
 
 typedef struct {
     /* para literales simples: int/float/string/bool/null */
-    enum { LIT_INT, LIT_FLOAT, LIT_STRING, LIT_BOOL, LIT_NULL } tag;
+    enum { LIT_INT, LIT_FLOAT, LIT_STRING, LIT_BOOL, LIT_NULL, LIT_CHAR } tag;  /* LIT_CHAR usa val.i */
     union { long i; double f; const char *s; bool b; } val;
 } AstLiteral;
 

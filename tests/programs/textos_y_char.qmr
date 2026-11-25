@@ -1,0 +1,6 @@
+Char inicial = 'Q';
+String nombre = "uimera";
+String completo = inicial + nombre;
+Print(completo);
+Print("Letra:", completo[0], "largo de lista:", 3);
+Print(completo == "Quimera");

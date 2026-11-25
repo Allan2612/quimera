@@ -66,9 +66,9 @@ static void cleanup_analyzer_resources(AstArena *arena, Interner *interner, Inte
 // Test: Declaración de función simple válida
 void test_analyzer_function_declaration_valid(void) {
     const char *source = 
-        "Function add(Integer a, Integer b) -> Integer "
+        "Integer add(Integer a, Integer b) "
         "Return a + b; "
-        "EndFunction";
+        "End";
     AstArena *arena;
     Interner *interner;
     Interned *syms;
@@ -87,9 +87,9 @@ void test_analyzer_function_declaration_valid(void) {
 // Test: Función sin parámetros válida
 void test_analyzer_function_no_parameters_valid(void) {
     const char *source = 
-        "Function greet() -> Void "
+        "Null greet() "
         "Print(\"Hello, World!\"); "
-        "EndFunction";
+        "End";
     AstArena *arena;
     Interner *interner;
     Interned *syms;
@@ -108,10 +108,10 @@ void test_analyzer_function_no_parameters_valid(void) {
 // Test: Función con múltiples parámetros y tipos de retorno válidos
 void test_analyzer_function_multiple_params_valid(void) {
     const char *source = 
-        "Function calculate(Integer x, Float y, String op) -> Float "
+        "Float calculate(Integer x, Float y, String op) "
         "Float result = 0.0; "
         "Return result; "
-        "EndFunction";
+        "End";
     AstArena *arena;
     Interner *interner;
     Interned *syms;
@@ -130,9 +130,9 @@ void test_analyzer_function_multiple_params_valid(void) {
 // Test: Función que retorna tipo incorrecto
 void test_analyzer_function_wrong_return_type(void) {
     const char *source = 
-        "Function getValue() -> Integer "
+        "Integer getValue() "
         "Return \"not an integer\"; "
-        "EndFunction";
+        "End";
     AstArena *arena;
     Interner *interner;
     Interned *syms;
@@ -151,9 +151,9 @@ void test_analyzer_function_wrong_return_type(void) {
 // Test: Función Void que intenta retornar valor
 void test_analyzer_void_function_returns_value(void) {
     const char *source = 
-        "Function doSomething() -> Void "
+        "Null doSomething() "
         "Return 42; "
-        "EndFunction";
+        "End";
     AstArena *arena;
     Interner *interner;
     Interned *syms;
@@ -172,9 +172,9 @@ void test_analyzer_void_function_returns_value(void) {
 // Test: Función non-void sin return
 void test_analyzer_non_void_function_no_return(void) {
     const char *source = 
-        "Function getValue() -> Integer "
+        "Integer getValue() "
         "Print(\"No return statement\"); "
-        "EndFunction";
+        "End";
     AstArena *arena;
     Interner *interner;
     Interned *syms;
@@ -195,9 +195,9 @@ void test_analyzer_non_void_function_no_return(void) {
 // Test: Llamada de función válida
 void test_analyzer_function_call_valid(void) {
     const char *source = 
-        "Function add(Integer a, Integer b) -> Integer "
+        "Integer add(Integer a, Integer b) "
         "Return a + b; "
-        "EndFunction "
+        "End "
         "Integer result = add(5, 3);";
     AstArena *arena;
     Interner *interner;
@@ -217,9 +217,9 @@ void test_analyzer_function_call_valid(void) {
 // Test: Llamada con número incorrecto de argumentos
 void test_analyzer_function_call_wrong_arg_count(void) {
     const char *source = 
-        "Function multiply(Integer a, Integer b) -> Integer "
+        "Integer multiply(Integer a, Integer b) "
         "Return a * b; "
-        "EndFunction "
+        "End "
         "Integer result = multiply(5);"; // Falta un argumento
     AstArena *arena;
     Interner *interner;
@@ -239,9 +239,9 @@ void test_analyzer_function_call_wrong_arg_count(void) {
 // Test: Llamada con tipos de argumentos incorrectos
 void test_analyzer_function_call_wrong_arg_types(void) {
     const char *source = 
-        "Function concat(String a, String b) -> String "
+        "String concat(String a, String b) "
         "Return a; " // simplificado
-        "EndFunction "
+        "End "
         "String result = concat(\"hello\", 42);"; // Segundo argumento es Integer, no String
     AstArena *arena;
     Interner *interner;
@@ -279,9 +279,9 @@ void test_analyzer_function_call_undeclared(void) {
 // Test: Llamada a función con conversión automática válida
 void test_analyzer_function_call_auto_conversion(void) {
     const char *source = 
-        "Function process(Float x) -> Float "
+        "Float process(Float x) "
         "Return x * 2.0; "
-        "EndFunction "
+        "End "
         "Float result = process(5);"; // Integer -> Float automático
     AstArena *arena;
     Interner *interner;
@@ -301,10 +301,10 @@ void test_analyzer_function_call_auto_conversion(void) {
 // Test: Función recursiva válida
 void test_analyzer_recursive_function_valid(void) {
     const char *source = 
-        "Function factorial(Integer n) -> Integer "
+        "Integer factorial(Integer n) "
         "If (n <= 1) Return 1; End "
         "Return n * factorial(n - 1); "
-        "EndFunction "
+        "End "
         "Integer result = factorial(5);";
     AstArena *arena;
     Interner *interner;
@@ -326,12 +326,12 @@ void test_analyzer_recursive_function_valid(void) {
 // Test: Funciones con mismo nombre pero diferentes parámetros
 void test_analyzer_function_overload_valid(void) {
     const char *source = 
-        "Function calculate(Integer x) -> Integer "
+        "Integer calculate(Integer x) "
         "Return x * 2; "
-        "EndFunction "
-        "Function calculate(Integer x, Integer y) -> Integer "
+        "End "
+        "Integer calculate(Integer x, Integer y) "
         "Return x + y; "
-        "EndFunction "
+        "End "
         "Integer result1 = calculate(5); "
         "Integer result2 = calculate(3, 7);";
     AstArena *arena;
@@ -356,10 +356,10 @@ void test_analyzer_function_overload_valid(void) {
 // Test: Uso válido de parámetros dentro de función
 void test_analyzer_parameter_scope_valid(void) {
     const char *source = 
-        "Function process(Integer value, String name) -> String "
+        "String process(Integer value, String name) "
         "If (value > 0) Return name; End "
         "Return \"invalid\"; "
-        "EndFunction";
+        "End";
     AstArena *arena;
     Interner *interner;
     Interned *syms;
@@ -378,9 +378,9 @@ void test_analyzer_parameter_scope_valid(void) {
 // Test: Intento de usar parámetro fuera del scope de función
 void test_analyzer_parameter_scope_invalid(void) {
     const char *source = 
-        "Function process(Integer value) -> Void "
+        "Null process(Integer value) "
         "Print(\"Processing\"); "
-        "EndFunction "
+        "End "
         "Integer x = value;"; // 'value' no está en scope aquí
     AstArena *arena;
     Interner *interner;

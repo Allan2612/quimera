@@ -533,7 +533,7 @@ void test_analyzer_valid_arithmetic_operations(void) {
 
 // Test: Operaciones lógicas válidas
 void test_analyzer_valid_logical_operations(void) {
-    const char *source = "Boolean a = True; Boolean b = False; Boolean and_result = a && b; Boolean or_result = a || b; Boolean not_result = Not a;";
+    const char *source = "Boolean a = True; Boolean b = False; Boolean and_result = a And b; Boolean or_result = a Or b; Boolean not_result = Not a;";
     AstArena *arena;
     Interner *interner;
     Interned *syms;
@@ -551,7 +551,7 @@ void test_analyzer_valid_logical_operations(void) {
 
 // Test: Shadowing de variables en ámbitos anidados
 void test_analyzer_scope_variable_shadowing(void) {
-    const char *source = "Integer x = 10; Begin Integer x = 20; Print(x); End Print(x);";
+    const char *source = "Integer x = 10; If (True) Integer x = 20; Print(x); End Print(x);";
     AstArena *arena;
     Interner *interner;
     Interned *syms;
@@ -569,7 +569,7 @@ void test_analyzer_scope_variable_shadowing(void) {
 
 // Test: Bloques anidados con ámbitos válidos
 void test_analyzer_scope_nested_blocks(void) {
-    const char *source = "Begin Integer a = 1; Begin Integer b = 2; Integer c = a + b; End End";
+    const char *source = "If (True) Integer a = 1; If (True) Integer b = 2; Integer c = a + b; End End";
     AstArena *arena;
     Interner *interner;
     Interned *syms;

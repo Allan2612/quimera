@@ -120,10 +120,12 @@ void test_parser_array_declaration(void) {
     
     AstNode *decl = program->as.program.decls.data[0];
     TEST_ASSERT_EQUAL(AST_VAR_DECL, decl->kind);
-    TEST_ASSERT_EQUAL_STRING("Integer", decl->as.var_decl.type_name);
+    TEST_ASSERT_EQUAL_STRING("Array:Integer", decl->as.var_decl.type_name);
     TEST_ASSERT_EQUAL_STRING("arr", decl->as.var_decl.name);
-    TEST_ASSERT_NOT_NULL(decl->as.var_decl.init); // Tamaño del array
-    TEST_ASSERT_EQUAL(AST_LITERAL, decl->as.var_decl.init->kind);
+    TEST_ASSERT_NOT_NULL(decl->as.var_decl.init); // [tamaño, elementos]
+    TEST_ASSERT_EQUAL(AST_BLOCK, decl->as.var_decl.init->kind);
+    TEST_ASSERT_EQUAL(2, decl->as.var_decl.init->as.block.stmts.count);
+    TEST_ASSERT_EQUAL(AST_LITERAL, decl->as.var_decl.init->as.block.stmts.data[0]->kind);
     
     TEST_ASSERT_EQUAL(0, p.error_count);
     
@@ -145,7 +147,7 @@ void test_parser_list_declaration(void) {
     
     AstNode *decl = program->as.program.decls.data[0];
     TEST_ASSERT_EQUAL(AST_VAR_DECL, decl->kind);
-    TEST_ASSERT_EQUAL_STRING("List", decl->as.var_decl.type_name);
+    TEST_ASSERT_EQUAL_STRING("List:Integer", decl->as.var_decl.type_name);
     TEST_ASSERT_EQUAL_STRING("numbers", decl->as.var_decl.name);
     
     TEST_ASSERT_EQUAL(0, p.error_count);

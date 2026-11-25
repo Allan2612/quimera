@@ -160,7 +160,7 @@ void test_analyzer_division_by_zero(void) {
 void test_analyzer_logical_expression_valid(void) {
     const char *source = 
         "Boolean a = True; Boolean b = False; "
-        "Boolean result = a && b || !a;";
+        "Boolean result = a And b Or Not a;";
     AstArena *arena;
     Interner *interner;
     Interned *syms;
@@ -178,7 +178,7 @@ void test_analyzer_logical_expression_valid(void) {
 
 // Test: Operadores lógicos con tipos no booleanos
 void test_analyzer_logical_non_boolean_operands(void) {
-    const char *source = "Boolean result = 5 && 3;"; // Integer && Integer no válido
+    const char *source = "Boolean result = 5 And 3;"; // Integer And Integer no válido
     AstArena *arena;
     Interner *interner;
     Interned *syms;
@@ -282,7 +282,7 @@ void test_analyzer_comparison_incompatible_types_expr(void) {
 void test_analyzer_mixed_expression_valid(void) {
     const char *source = 
         "Integer a = 10; Integer b = 5; Integer c = 3; "
-        "Boolean result = (a + b > c * 2) && (a % 2 == 0);";
+        "Boolean result = (a + b > c * 2) And (a % 2 == 0);";
     AstArena *arena;
     Interner *interner;
     Interned *syms;
@@ -384,7 +384,7 @@ void test_analyzer_operator_precedence_arithmetic(void) {
 void test_analyzer_operator_precedence_logical(void) {
     const char *source = 
         "Integer x = 5; Integer y = 3; Integer z = 7; "
-        "Boolean result = x > y && y < z;"; // Debe ser (x > y) && (y < z)
+        "Boolean result = x > y And y < z;"; // Debe ser (x > y) And (y < z)
     AstArena *arena;
     Interner *interner;
     Interned *syms;

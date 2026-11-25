@@ -399,8 +399,25 @@ static AstNode *parse_prefix(Parser *p) {
             lit->as.literal.tag = LIT_FLOAT; 
             lit->as.literal.val.f = strtod(t->lexeme, NULL);
         }
-        else if (tok_is(t, TOK_STRING) || tok_is(t, TOK_CHAR)) { 
-            lit->as.literal.tag = LIT_STRING; 
+        else if (tok_is(t, TOK_CHAR)) {
+            /* 'A' o con escape: '\n', '\t', '\\', '\'' */
+            const char *lx = t->lexeme;
+            char c = '\0';
+            if (lx && lx[0] == '\'' && lx[1] == '\\' && lx[2]) {
+                switch (lx[2]) {
+                    case 'n': c = '\n'; break;
+                    case 't': c = '\t'; break;
+                    case '0': c = '\0'; break;
+                    default:  c = lx[2]; break;  /* \\ \' \" */
+                }
+            } else if (lx && lx[0] == '\'' && lx[1]) {
+                c = lx[1];
+            }
+            lit->as.literal.tag = LIT_CHAR;
+            lit->as.literal.val.i = (unsigned char)c;
+        }
+        else if (tok_is(t, TOK_STRING)) {
+            lit->as.literal.tag = LIT_STRING;
             lit->as.literal.val.s = intern_token_lexeme(p, t); // String internada
         }
         else if (tok_is(t, TOK_BOOLEAN) || lexeme_is_intern(p, t, p->syms->K_True) || lexeme_is_intern(p, t, p->syms->K_False)) { 
@@ -784,10 +801,12 @@ static AstNode *parse_print(Parser *p) {
     AstNode *pr = make_node(p, AST_PRINT, kw);
     AstList *xs = &pr->as.print.exprs;
     
-    // Según Sintaxis.md: Print ( <expresion> ) ; - solo UNA expresión
+    // Print ( <expresion> { , <expresion> } ) ; - los valores se imprimen separados por espacio
     if (!is_delim(p, at(p), ")")) {
-        AstNode *e = parse_expression(p);
-        if (e) list_push(p, xs, e);
+        do {
+            AstNode *e = parse_expression(p);
+            if (e) list_push(p, xs, e);
+        } while (is_delim(p, at(p), ",") && advance(p));
     } else {
         err(p, at(p), "Print requiere una expresión");
     }

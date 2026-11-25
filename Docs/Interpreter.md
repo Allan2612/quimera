@@ -64,6 +64,31 @@ Se ha implementado exitosamente un intérprete tree-walker para el lenguaje Quim
 - **Errores semánticos**: Variables no declaradas, tipos incompatibles
 - **Warnings de runtime**: División por cero, comparaciones entre tipos incompatibles
 
+### 9. Funciones
+- Declaración `Tipo nombre(Tipo param, ...) ... End` (o `Null` si no devuelve nada) y llamada `nombre(args)`.
+- Cada llamada abre un scope cuyo padre es el global: la función ve las variables globales y sus parámetros, no las locales de quien la llama.
+- `Return` termina la función; sin `Return` devuelve `Null`.
+- Recursión con un límite de 400 llamadas anidadas (error 4004), para que una recursión sin caso base no tumbe el intérprete.
+
+### 10. Arreglos y listas
+- Son objetos por referencia: `l.append(x)` modifica la variable y pasarlos a una función no los copia.
+- Arreglo: `Integer a[3];` o `Integer a[3] {1, 2, 3};`. Tamaño fijo; los elementos sin valor toman el valor por defecto de su tipo (0, 0.0, False, "").
+- Lista: `Integer List l;` o `Integer List l {4, 5};`, con `l.append(x)`, `l.remove(posición)` y `l.size()`.
+- Acceso y asignación por índice: `a[i]`, `a[i] = x`, `a[i] += x`. Un índice fuera de rango corta el programa (error 4002).
+- `Print` muestra arreglos y listas como `[1, 2, 3]`.
+
+### 11. Entrada con Read
+- `Read(x);` lee una línea de la entrada estándar y la convierte al tipo declarado de `x` (Integer, Float, Boolean, Char o String).
+- Si la entrada no corresponde al tipo, o no hay más entrada (error 4006), el programa termina con error.
+
+### 12. Otros
+- `Print` acepta varios valores separados por coma: `Print("x =", x);` imprime `x = 10`.
+- Literales `Char` (`'A'`, `'
+'`) y concatenación de `Char` con `String`.
+- La comparación de textos compara el contenido, venga de un literal, de una concatenación o de `Read`.
+- La división o el módulo por cero cortan el programa (error 4001); si el divisor es un literal 0, lo detecta el análisis semántico.
+- El ejecutable devuelve 0 si el programa terminó bien y 1 si hubo errores.
+
 ## Arquitectura del Intérprete
 
 ### Componentes Principales

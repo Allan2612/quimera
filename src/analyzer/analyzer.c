@@ -225,6 +225,8 @@ TypeInfo get_literal_type(AstLiteral *literal) {
             return type_create_basic(TYPE_BOOLEAN, "Boolean");
         case LIT_NULL:
             return type_create_basic(TYPE_NULL, "Null");
+        case LIT_CHAR:
+            return type_create_basic(TYPE_CHAR, "Char");
         default:
             return type_create_basic(TYPE_UNKNOWN, "Unknown");
     }
@@ -535,13 +537,23 @@ TypeInfo validate_function_call(SemanticAnalyzer *analyzer, Symbol *function, As
         return type_create_basic(TYPE_UNKNOWN, "unknown");
     }
     
-    // TODO: Implementar validación completa de argumentos
-    // Por ahora, validación básica: el tipo de retorno está en element_type
     SemanticType return_type = function->type.element_type;
-    
-    // Analizar argumentos (para detectar errores en las expresiones)
+    AstList *params = function->decl ? &function->decl->as.func_decl.params : NULL;
+
+    if (params && params->count != args->count) {
+        semantic_error(analyzer, location, "'%s' espera %zu argumento(s) y recibió %zu",
+                       function->name, params->count, args->count);
+    }
+
+    // Cada argumento debe poder asignarse al tipo de su parámetro (Integer -> Float se permite)
     for (size_t i = 0; i < args->count; i++) {
-        analyze_node(analyzer, args->data[i]);
+        TypeInfo arg_type = analyze_node(analyzer, args->data[i]);
+        if (params && i < params->count && params->data[i]->kind == AST_PARAM) {
+            TypeInfo param_type = type_from_name(analyzer, params->data[i]->as.param.type_name);
+            if (param_type.base_type != TYPE_UNKNOWN) {
+                validate_assignment(analyzer, param_type, arg_type, args->data[i]->span);
+            }
+        }
     }
     
     return type_create_basic(return_type, type_to_string(type_create_basic(return_type, "")));
@@ -643,6 +655,14 @@ static TypeInfo analyze_literal(SemanticAnalyzer *analyzer, AstNode *node) {
 static TypeInfo analyze_binary_op(SemanticAnalyzer *analyzer, AstNode *node) {
     TypeInfo left_type = analyze_node(analyzer, node->as.binop.left);
     TypeInfo right_type = analyze_node(analyzer, node->as.binop.right);
+
+    AstNode *rhs = node->as.binop.right;
+    if ((node->as.binop.op == OP_DIV || node->as.binop.op == OP_MOD) && rhs &&
+        rhs->kind == AST_LITERAL &&
+        ((rhs->as.literal.tag == LIT_INT && rhs->as.literal.val.i == 0) ||
+         (rhs->as.literal.tag == LIT_FLOAT && rhs->as.literal.val.f == 0.0))) {
+        semantic_error(analyzer, node->span, "División por cero");
+    }
     
     return validate_binary_operation(analyzer, node->as.binop.op, left_type, right_type, node->span);
 }
@@ -741,23 +761,18 @@ static TypeInfo analyze_call(SemanticAnalyzer *analyzer, AstNode *node) {
     
     // Si no es un método especial, analizar normalmente
     TypeInfo callee_type = analyze_node(analyzer, node->as.call.callee);
-    
-    // Analizar argumentos
-    for (size_t i = 0; i < node->as.call.args.count; i++) {
-        analyze_node(analyzer, node->as.call.args.data[i]);
-    }
-    
+
     if (node->as.call.callee->kind == AST_IDENT) {
-        const char *func_name = node->as.call.callee->as.ident.lexeme;
-        
-        // Función normal
-        Symbol *func_symbol = symbol_lookup(analyzer, func_name);
-        
+        Symbol *func_symbol = symbol_lookup(analyzer, node->as.call.callee->as.ident.lexeme);
         if (func_symbol) {
+            // Analiza cada argumento y lo compara con su parámetro
             return validate_function_call(analyzer, func_symbol, &node->as.call.args, node->span);
         }
     }
-    
+
+    for (size_t i = 0; i < node->as.call.args.count; i++) {
+        analyze_node(analyzer, node->as.call.args.data[i]);
+    }
     return callee_type;
 }
 
@@ -864,6 +879,8 @@ static void analyze_function_declaration(SemanticAnalyzer *analyzer, AstNode *no
     if (!symbol_declare(analyzer, name, func_type, node->span)) {
         return;
     }
+    Symbol *func_symbol = symbol_lookup_current_scope(analyzer, name);
+    if (func_symbol) func_symbol->decl = node;
     
     // Crear nuevo ámbito para la función
     char scope_name[256];
@@ -1023,14 +1040,14 @@ static void analyze_return_statement(SemanticAnalyzer *analyzer, AstNode *node) 
 }
 
 static void analyze_print_statement(SemanticAnalyzer *analyzer, AstNode *node) {
-    // Según Sintaxis.md: Print ( <expresion> ) ; - solo UNA expresión
-    if (node->as.print.exprs.count != 1) {
-        semantic_error(analyzer, node->span, "Print requiere exactamente una expresión");
+    // Print ( <expresion> { , <expresion> } ) ; - al menos un valor
+    if (node->as.print.exprs.count == 0) {
+        semantic_error(analyzer, node->span, "Print requiere al menos una expresión");
         return;
     }
-    
-    // Analizar la única expresión
-    analyze_node(analyzer, node->as.print.exprs.data[0]);
+    for (size_t i = 0; i < node->as.print.exprs.count; i++) {
+        analyze_node(analyzer, node->as.print.exprs.data[i]);
+    }
 }
 
 static void analyze_read_statement(SemanticAnalyzer *analyzer, AstNode *node) {

@@ -145,7 +145,7 @@
 ## Entrada/Salida (I/O)
 ```ebnf
 <input_stmt>  ::= Read ( <identificador> ) ;
-<output_stmt> ::= Print ( <expresion> ) ;
+<output_stmt> ::= Print ( <expresion> { { , <expresion> } } ) ;   // varios valores: se separan con espacio
 ```
 
 ---

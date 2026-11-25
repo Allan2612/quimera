@@ -57,6 +57,7 @@ typedef struct Symbol {
     SrcSpan declared_at;        // Ubicación de declaración
     bool is_initialized;        // Si la variable ha sido inicializada
     bool is_function;           // Si es una función
+    AstNode *decl;              // Declaración (solo funciones): para validar los argumentos
     struct Symbol *next;        // Para lista enlazada en hash table
 } Symbol;
 

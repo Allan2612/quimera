@@ -661,6 +661,7 @@ static EvalResult resolve_index(InterpreterContext *ctx, AstNode *node, Value **
 
 static EvalResult eval_literal(InterpreterContext *ctx, AstNode *node) {
     EvalResult result = { .flow = FLOW_NORMAL };
+    (void)ctx;
     
     AstLiteral *lit = &node->as.literal;
     switch (lit->tag) {
@@ -678,6 +679,9 @@ static EvalResult eval_literal(InterpreterContext *ctx, AstNode *node) {
             break;
         case LIT_NULL:
             result.value = value_null();
+            break;
+        case LIT_CHAR:
+            result.value = value_char((char)lit->val.i);
             break;
     }
     
@@ -763,10 +767,13 @@ static EvalResult eval_binary_op(InterpreterContext *ctx, AstNode *node) {
             result.value = value_multiply(left, right);
             break;
         case OP_DIV:
-            result.value = value_divide(left, right, node->span);
-            break;
         case OP_MOD:
-            result.value = value_modulo(left, right, node->span);
+            if ((right->type == VAL_INTEGER && right->as.integer == 0) ||
+                (right->type == VAL_FLOAT && right->as.float_val == 0.0)) {
+                return runtime_error(ctx, node, 4001, NULL);
+            }
+            result.value = op == OP_DIV ? value_divide(left, right, node->span)
+                                        : value_modulo(left, right, node->span);
             break;
         case OP_EQ:
             result.value = value_boolean(value_equals(left, right));
@@ -939,7 +946,7 @@ static EvalResult eval_print(InterpreterContext *ctx, AstNode *node) {
         // Agregar al buffer
         size_t value_len = strlen(value_str);
         if (buffer_pos + value_len < sizeof(output_buffer) - 1) {
-            strncpy(output_buffer + buffer_pos, value_str, value_len);
+            memcpy(output_buffer + buffer_pos, value_str, value_len);
             buffer_pos += value_len;
         }
     }
