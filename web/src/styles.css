@@ -40,8 +40,8 @@
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
+/* Tema oscuro: lo elige site.ts (o el script del <head>) según la preferencia guardada o la del sistema */
+:root[data-theme='dark'] {
     --canvas: #161615;
     --surface: #1d1d1c;
     --surface-2: #232321;
@@ -76,7 +76,6 @@
     --tk-operator: #a5a49f;
     --tk-comment: #93928c;
     color-scheme: dark;
-  }
 }
 
 *,
@@ -211,13 +210,13 @@ main {
 }
 
 .hero {
-  max-width: 880px;
+  max-width: 1120px;
   margin: 0 auto;
-  padding: 96px 0 56px;
+  padding: 44px 0 28px;
 }
 
 .eyebrow {
-  margin: 0 0 20px;
+  margin: 0 0 14px;
   font-family: var(--font-mono);
   font-size: 12px;
   letter-spacing: 0.06em;
@@ -236,7 +235,7 @@ h2 {
 }
 
 h1 {
-  font-size: clamp(44px, 7.5vw, 84px);
+  font-size: clamp(38px, 5.4vw, 60px);
 }
 
 h1 em,
@@ -245,8 +244,8 @@ h2 em {
 }
 
 .lede {
-  max-width: 640px;
-  margin: 24px 0 0;
+  max-width: 680px;
+  margin: 16px 0 0;
   font-size: 18px;
   color: var(--muted);
 }
@@ -748,5 +747,130 @@ h2 {
   }
   .card {
     padding: 20px;
+  }
+}
+
+/* ---------- Tema, pestañas, salida y tarjetas ---------- */
+.topbar-end {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 160ms ease, background-color 160ms ease;
+}
+
+.icon-btn:hover {
+  color: var(--ink);
+  background: var(--surface-2);
+}
+
+.topbar nav a[aria-current='page'] {
+  color: var(--ink);
+}
+
+/* Pestañas Editor / Salida: solo en pantallas angostas */
+.tabs {
+  display: none;
+  gap: 4px;
+}
+
+.tabs [role='tab'] {
+  font: inherit;
+  font-size: 14px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.tabs [role='tab'][aria-selected='true'] {
+  background: var(--surface-2);
+  color: var(--ink);
+  border-color: var(--border-strong);
+}
+
+.output-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-small {
+  padding: 3px 8px;
+  font-size: 12px;
+}
+
+.output .diag-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+
+.output .diag p {
+  margin: 4px 0 0;
+}
+
+.output .diag .diag-help {
+  margin-left: auto;
+  font-size: 12px;
+  text-underline-offset: 2px;
+}
+
+.card-foot {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: auto;
+}
+
+.card .try {
+  flex: none;
+}
+
+@media (max-width: 900px) {
+  .tabs {
+    display: flex;
+  }
+  .panes[data-tab='editor'] .pane-output,
+  .panes[data-tab='salida'] .pane-editor {
+    display: none;
+  }
+  .pane-editor {
+    border-bottom: 0;
+  }
+  .output {
+    max-height: none;
+    min-height: 360px;
+  }
+}
+
+/* En el celular, Ejecutar queda siempre a mano abajo */
+@media (max-width: 560px) {
+  #run {
+    position: fixed;
+    right: 16px;
+    bottom: calc(16px + env(safe-area-inset-bottom));
+    z-index: 20;
+    padding: 12px 18px;
+    border-radius: 9999px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+  }
+  .footer {
+    padding-bottom: 96px;
   }
 }

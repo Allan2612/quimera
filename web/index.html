@@ -3,7 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <script>document.documentElement.classList.add('js')</script>
+    <script>
+      // Tema antes de pintar, para que no parpadee (lo mismo que hace site.ts)
+      (function () {
+        var d = document.documentElement, t;
+        d.classList.add('js');
+        try { t = localStorage.getItem('quimera.tema'); } catch (e) {}
+        var dark = t === 'oscuro' || (t !== 'claro' && matchMedia('(prefers-color-scheme: dark)').matches);
+        d.dataset.theme = dark ? 'dark' : 'light';
+      })();
+    </script>
     <title>Quimera — un lenguaje hecho desde cero en C</title>
     <meta
       name="description"
@@ -14,7 +23,9 @@
       property="og:description"
       content="Escribe y ejecuta programas de Quimera en el navegador. Intérprete en C compilado a WebAssembly."
     />
-    <meta property="og:url" content="https://quimera.avt.codes" />
+    <meta property="og:url" content="https://quimera.avt.codes/" />
+    <meta property="og:type" content="website" />
+    <link rel="canonical" href="https://quimera.avt.codes/" />
     <meta name="theme-color" content="#FBFBFA" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#161615" media="(prefers-color-scheme: dark)" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
@@ -29,13 +40,16 @@
     <div class="ambient" aria-hidden="true"></div>
 
     <header class="topbar">
-      <a class="wordmark" href="#">Quimera</a>
-      <nav aria-label="Secciones">
-        <a href="#probar">Probar</a>
-        <a href="#sintaxis">Sintaxis</a>
-        <a href="#como-funciona">Cómo funciona</a>
-        <a href="https://github.com/Allan2612/quimera" rel="noopener">GitHub</a>
-      </nav>
+      <a class="wordmark" href="/">Quimera</a>
+      <div class="topbar-end">
+        <nav aria-label="Secciones">
+          <a href="#probar">Probar</a>
+          <a href="#sintaxis">Sintaxis</a>
+          <a href="#como-funciona">Cómo funciona</a>
+          <a href="https://github.com/Allan2612/quimera" rel="noopener">GitHub</a>
+        </nav>
+        <button id="theme" class="icon-btn" type="button" aria-label="Cambiar tema"></button>
+      </div>
     </header>
 
     <main>
@@ -54,7 +68,12 @@
             <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
             <label class="sr-only" for="example">Ejemplo</label>
             <select id="example" class="select"></select>
+            <div id="tabs" class="tabs" role="tablist" aria-label="Vista">
+              <button type="button" role="tab" data-tab="editor" aria-controls="panes">Editor</button>
+              <button type="button" role="tab" data-tab="salida" aria-controls="panes">Salida</button>
+            </div>
             <div class="bar-actions">
+              <button id="reset" class="btn-ghost" type="button" title="Vuelve al ejemplo elegido">Restaurar</button>
               <button id="share" class="btn-ghost" type="button">Copiar enlace</button>
               <button id="run" class="btn-primary" type="button">
                 <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 1.5v9l8-4.5z" fill="currentColor" /></svg>
@@ -63,7 +82,7 @@
               </button>
             </div>
           </div>
-          <div class="panes">
+          <div id="panes" class="panes">
             <div class="pane pane-editor">
               <div id="editor" class="editor"></div>
               <div class="stdin">
@@ -74,7 +93,10 @@
             <div class="pane pane-output">
               <div class="output-head">
                 <span>Salida</span>
-                <span id="status" class="status" role="status" aria-live="polite"></span>
+                <span class="output-tools">
+                  <span id="status" class="status" role="status" aria-live="polite"></span>
+                  <button id="copy" class="btn-ghost btn-small" type="button">Copiar</button>
+                </span>
               </div>
               <ol id="output" class="output" aria-label="Salida del programa"></ol>
             </div>
@@ -94,12 +116,18 @@
 Float pi = 3.14;
 String nombre = "Ana";
 Char inicial = 'A';
-Boolean activo = True;</code></pre>
-            <p>Una variable sin valor empieza en <code>Null</code>.</p>
+Boolean activo = True;
+Print(nombre, edad, activo);</code></pre>
+            <div class="card-foot">
+              <p>Una variable sin valor empieza en <code>Null</code>.</p>
+              <button class="btn-ghost btn-small try" type="button">Probar</button>
+            </div>
           </article>
           <article class="card card-wide reveal" style="--i: 1">
             <span class="tag tag-green">Condiciones y ciclos</span>
-            <pre><code class="qmr">If (nota &gt;= 70)
+            <pre><code class="qmr">Integer nota = 75;
+
+If (nota &gt;= 70)
   Print("Aprobado");
 ElseIf (nota &gt;= 60)
   Print("Ampliación");
@@ -110,7 +138,10 @@ End
 For (Integer i = 0 : i &lt; 3 : i += 1)
   Print(i);
 End</code></pre>
-            <p>Lógica con <code>And</code>, <code>Or</code> y <code>Not</code>. También <code>While (condición) … End</code>.</p>
+            <div class="card-foot">
+              <p>Lógica con <code>And</code>, <code>Or</code> y <code>Not</code>. También <code>While (condición) … End</code>.</p>
+              <button class="btn-ghost btn-small try" type="button">Probar</button>
+            </div>
           </article>
           <article class="card card-wide reveal" style="--i: 2">
             <span class="tag tag-yellow">Funciones</span>
@@ -120,8 +151,14 @@ End
 
 Null saludar(String nombre)
   Print("Hola,", nombre);
-End</code></pre>
-            <p>El tipo de retorno va primero; <code>Null</code> si no devuelve nada. Admite recursión.</p>
+End
+
+Print(cuadrado(4));
+saludar("Ana");</code></pre>
+            <div class="card-foot">
+              <p>El tipo de retorno va primero; <code>Null</code> si no devuelve nada. Admite recursión.</p>
+              <button class="btn-ghost btn-small try" type="button">Probar</button>
+            </div>
           </article>
           <article class="card reveal" style="--i: 3">
             <span class="tag tag-red">Arreglos y listas</span>
@@ -131,17 +168,23 @@ a[0] = 10;
 String List l;
 l.append("hola");
 Print(l.size());</code></pre>
-            <p>Los arreglos tienen tamaño fijo; las listas crecen.</p>
+            <div class="card-foot">
+              <p>Los arreglos tienen tamaño fijo; las listas crecen.</p>
+              <button class="btn-ghost btn-small try" type="button">Probar</button>
+            </div>
           </article>
           <article class="card card-full reveal" style="--i: 4">
             <span class="tag tag-blue">Entrada y salida</span>
             <pre><code class="qmr">Integer edad;
 Read(edad);
 Print("En 10 años:", edad + 10);</code></pre>
-            <p>
+            <div class="card-foot">
+              <p>
               <code>Print</code> acepta varios valores y los separa con un espacio. <code>Read</code> lee una línea
               y la convierte al tipo de la variable. Comentarios con <code>//</code> y <code>/* … */</code>.
             </p>
+              <button class="btn-ghost btn-small try" type="button" data-input="21">Probar</button>
+            </div>
           </article>
         </div>
       </section>

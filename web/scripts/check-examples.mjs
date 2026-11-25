@@ -41,6 +41,21 @@ for (const f of readdirSync(examples).filter((x) => x.endsWith('.qmr')).sort()) 
   report('ejemplo ' + f, wantError ? exitCode === 1 : exitCode === 0, '  salida: ' + lines.join('\n  '));
 }
 
+// Código de las tarjetas de la página: el botón "Probar" lo ejecuta, así que debe correr sin errores
+{
+  const html = read(join(web, 'index.html'));
+  const decode = (s) => s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  for (const card of html.matchAll(/<article class="card[\s\S]*?<\/article>/g)) {
+    const code = card[0].match(/<code class="qmr">([\s\S]*?)<\/code>/);
+    if (!code) continue;
+    const input = card[0].match(/data-input="([^"]*)"/)?.[1] ?? '';
+    const title = card[0].match(/<span class="tag[^"]*">([^<]*)</)?.[1] ?? '?';
+    const { lines, exitCode } = await runQuimera(decode(code[1]), input);
+    const printed = lines.some((l) => l.includes('"type":"output"'));
+    report('tarjeta ' + title, exitCode === 0 && printed, '  salida: ' + lines.join('\n  '));
+  }
+}
+
 // Colores de sintaxis: cada palabra cae en su tipo de token
 {
   const { highlightToHtml } = await import('../src/quimera-tokens.ts');
