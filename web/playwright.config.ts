@@ -6,6 +6,8 @@ export default defineConfig({
   fullyParallel: true,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? 'github' : 'list',
+  // El intérprete en WebAssembly tarda más cuando corren varios navegadores a la vez
+  expect: { timeout: 15_000 },
   use: { baseURL: 'http://localhost:4174', trace: 'retain-on-failure' },
   // En el CI basta Chromium; ALL_BROWSERS=1 suma Firefox y WebKit para revisar en local
   projects: [

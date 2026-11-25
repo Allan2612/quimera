@@ -59,10 +59,9 @@ test('el tema elegido se mantiene al recargar', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'light' });
   await page.goto('/');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-  // sistema → claro → oscuro
-  await page.locator('#theme').click();
-  await page.locator('#theme').click();
+  await page.getByRole('button', { name: 'Cambiar a tema oscuro' }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect(page.getByRole('button', { name: 'Cambiar a tema claro' })).toBeVisible();
   await page.goto('/docs/');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 });

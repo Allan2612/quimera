@@ -4,52 +4,56 @@ import { highlightToHtml } from './quimera-tokens';
 
 /* ---------------- Tema ---------------- */
 
-type Theme = 'sistema' | 'claro' | 'oscuro';
+// Dos temas. Mientras la persona no elija, se sigue el del sistema; al tocar el botón se guarda su elección.
+type Theme = 'claro' | 'oscuro';
 const THEME_KEY = 'quimera.tema';
-const ORDER: Theme[] = ['sistema', 'claro', 'oscuro'];
-const LABEL: Record<Theme, string> = { sistema: 'Tema del sistema', claro: 'Tema claro', oscuro: 'Tema oscuro' };
-const ICON: Record<Theme, string> = {
-  sistema: '<rect x="2.5" y="3.5" width="15" height="10" rx="1.5"/><path d="M7 17h6M10 13.5V17"/>',
-  claro: '<circle cx="10" cy="10" r="3.5"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.3 4.3l1.4 1.4M14.3 14.3l1.4 1.4M4.3 15.7l1.4-1.4M14.3 5.7l1.4-1.4"/>',
-  oscuro: '<path d="M16 12.5A7 7 0 0 1 7.5 4a7 7 0 1 0 8.5 8.5z"/>',
+// El botón muestra a qué tema lleva: luna en el claro, sol en el oscuro
+const ICON = {
+  sol: '<circle cx="10" cy="10" r="3.5"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.3 4.3l1.4 1.4M14.3 14.3l1.4 1.4M4.3 15.7l1.4-1.4M14.3 5.7l1.4-1.4"/>',
+  luna: '<path d="M16 12.5A7 7 0 0 1 7.5 4a7 7 0 1 0 8.5 8.5z"/>',
 };
 
-function readTheme(): Theme {
+function readTheme(): Theme | null {
   try {
-    const t = localStorage.getItem(THEME_KEY) as Theme | null;
-    return t && ORDER.includes(t) ? t : 'sistema';
+    const t = localStorage.getItem(THEME_KEY);
+    return t === 'claro' || t === 'oscuro' ? t : null; // cualquier otro valor (o ninguno): el del sistema
   } catch {
-    return 'sistema';
+    return null;
   }
 }
 
 const media = window.matchMedia('(prefers-color-scheme: dark)');
+const isDark = (chosen: Theme | null) => chosen === 'oscuro' || (chosen === null && media.matches);
 
-function applyTheme(theme: Theme) {
-  const dark = theme === 'oscuro' || (theme === 'sistema' && media.matches);
-  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+function applyTheme(chosen: Theme | null) {
+  document.documentElement.dataset.theme = isDark(chosen) ? 'dark' : 'light';
 }
 
 export function initTheme() {
-  let theme = readTheme();
-  applyTheme(theme);
-  media.addEventListener('change', () => applyTheme(theme));
+  let chosen = readTheme();
+  applyTheme(chosen);
   const button = document.querySelector<HTMLButtonElement>('#theme');
-  if (!button) return;
   const paint = () => {
-    button.innerHTML = `<svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[theme]}</svg>`;
-    button.setAttribute('aria-label', `${LABEL[theme]} (cambiar)`);
-    button.title = LABEL[theme];
+    if (!button) return;
+    const dark = isDark(chosen);
+    button.innerHTML = `<svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${dark ? ICON.sol : ICON.luna}</svg>`;
+    const label = dark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro';
+    button.setAttribute('aria-label', label);
+    button.title = label;
   };
+  media.addEventListener('change', () => {
+    applyTheme(chosen);
+    paint();
+  });
   paint();
-  button.addEventListener('click', () => {
-    theme = ORDER[(ORDER.indexOf(theme) + 1) % ORDER.length];
+  button?.addEventListener('click', () => {
+    chosen = isDark(chosen) ? 'claro' : 'oscuro';
     try {
-      localStorage.setItem(THEME_KEY, theme);
+      localStorage.setItem(THEME_KEY, chosen);
     } catch {
       /* sin almacenamiento: dura hasta recargar */
     }
-    applyTheme(theme);
+    applyTheme(chosen);
     paint();
   });
 }
