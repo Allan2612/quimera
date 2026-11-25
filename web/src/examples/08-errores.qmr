@@ -1,0 +1,5 @@
+// Quimera explica los errores con línea y columna
+Integer total = 10;
+String texto = "hola";
+Integer resultado = total + texto;
+Print(resultado);

@@ -16,7 +16,7 @@ Integer List numeros {3, 5, 8};
 numeros.append(13);
 
 For (Integer i = 0 : i < numeros.size() : i += 1)
-  Print(numeros[i], "! =", factorial(numeros[i]));
+  Print("factorial de", numeros[i], "=", factorial(numeros[i]));
 End
 ```
 
@@ -49,7 +49,7 @@ make
 bin/Quimera programa.qmr
 ```
 
-**Sitio web** (Node 20+):
+**Sitio web** (Node 22.18 o más nuevo):
 
 ```sh
 cd web

@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>document.documentElement.classList.add('js')</script>
+    <title>Quimera — un lenguaje hecho desde cero en C</title>
+    <meta
+      name="description"
+      content="Quimera es un lenguaje de programación con lexer, parser, analizador semántico e intérprete escritos en C. Pruébalo en el navegador: corre compilado a WebAssembly."
+    />
+    <meta property="og:title" content="Quimera — un lenguaje hecho desde cero en C" />
+    <meta
+      property="og:description"
+      content="Escribe y ejecuta programas de Quimera en el navegador. Intérprete en C compilado a WebAssembly."
+    />
+    <meta property="og:url" content="https://quimera.avt.codes" />
+    <meta name="theme-color" content="#FBFBFA" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#161615" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="ambient" aria-hidden="true"></div>
+
+    <header class="topbar">
+      <a class="wordmark" href="#">Quimera</a>
+      <nav aria-label="Secciones">
+        <a href="#probar">Probar</a>
+        <a href="#sintaxis">Sintaxis</a>
+        <a href="#como-funciona">Cómo funciona</a>
+        <a href="https://github.com/Allan2612/quimera" rel="noopener">GitHub</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero reveal">
+        <p class="eyebrow">Proyecto de Paradigmas de Programación · UNA</p>
+        <h1>Un lenguaje pequeño,<br /><em>hecho desde cero</em> en C.</h1>
+        <p class="lede">
+          Quimera tiene su propio lexer, parser, analizador semántico e intérprete. Esta página corre ese
+          mismo intérprete compilado a WebAssembly: tu código se ejecuta en tu navegador, sin servidor.
+        </p>
+      </section>
+
+      <section id="probar" class="playground reveal" aria-label="Editor de Quimera">
+        <div class="window">
+          <div class="window-bar">
+            <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+            <label class="sr-only" for="example">Ejemplo</label>
+            <select id="example" class="select"></select>
+            <div class="bar-actions">
+              <button id="share" class="btn-ghost" type="button">Copiar enlace</button>
+              <button id="run" class="btn-primary" type="button">
+                <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 1.5v9l8-4.5z" fill="currentColor" /></svg>
+                Ejecutar
+                <kbd id="run-kbd">Ctrl ↵</kbd>
+              </button>
+            </div>
+          </div>
+          <div class="panes">
+            <div class="pane pane-editor">
+              <div id="editor" class="editor"></div>
+              <div class="stdin">
+                <label for="stdin">Entrada <span class="hint">— una línea por cada <code>Read</code></span></label>
+                <textarea id="stdin" rows="2" spellcheck="false" placeholder="Lo que va a leer Read, una línea por dato"></textarea>
+              </div>
+            </div>
+            <div class="pane pane-output">
+              <div class="output-head">
+                <span>Salida</span>
+                <span id="status" class="status" role="status" aria-live="polite"></span>
+              </div>
+              <ol id="output" class="output" aria-label="Salida del programa"></ol>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="sintaxis" class="section">
+        <header class="section-head reveal">
+          <h2>Sintaxis</h2>
+          <p>Palabras clave en inglés, bloques que cierran con <code>End</code> y tipos explícitos.</p>
+        </header>
+        <div class="bento">
+          <article class="card reveal" style="--i: 0">
+            <span class="tag tag-blue">Tipos</span>
+            <pre><code>Integer edad = 21;
+Float pi = 3.14;
+String nombre = "Ana";
+Char inicial = 'A';
+Boolean activo = True;</code></pre>
+            <p>Una variable sin valor empieza en <code>Null</code>.</p>
+          </article>
+          <article class="card card-wide reveal" style="--i: 1">
+            <span class="tag tag-green">Condiciones y ciclos</span>
+            <pre><code>If (nota &gt;= 70)
+  Print("Aprobado");
+ElseIf (nota &gt;= 60)
+  Print("Ampliación");
+Else
+  Print("Reprobado");
+End
+
+For (Integer i = 0 : i &lt; 3 : i += 1)
+  Print(i);
+End</code></pre>
+            <p>Lógica con <code>And</code>, <code>Or</code> y <code>Not</code>. También <code>While (condición) … End</code>.</p>
+          </article>
+          <article class="card card-wide reveal" style="--i: 2">
+            <span class="tag tag-yellow">Funciones</span>
+            <pre><code>Integer cuadrado(Integer n)
+  Return n * n;
+End
+
+Null saludar(String nombre)
+  Print("Hola,", nombre);
+End</code></pre>
+            <p>El tipo de retorno va primero; <code>Null</code> si no devuelve nada. Admite recursión.</p>
+          </article>
+          <article class="card reveal" style="--i: 3">
+            <span class="tag tag-red">Arreglos y listas</span>
+            <pre><code>Integer a[3] {1, 2, 3};
+a[0] = 10;
+
+String List l;
+l.append("hola");
+Print(l.size());</code></pre>
+            <p>Los arreglos tienen tamaño fijo; las listas crecen.</p>
+          </article>
+          <article class="card card-full reveal" style="--i: 4">
+            <span class="tag tag-blue">Entrada y salida</span>
+            <pre><code>Integer edad;
+Read(edad);
+Print("En 10 años:", edad + 10);</code></pre>
+            <p>
+              <code>Print</code> acepta varios valores y los separa con un espacio. <code>Read</code> lee una línea
+              y la convierte al tipo de la variable. Comentarios con <code>//</code> y <code>/* … */</code>.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section id="como-funciona" class="section">
+        <header class="section-head reveal">
+          <h2>Cómo funciona</h2>
+          <p>Cuatro etapas en C11, cada una con sus propias pruebas. Cualquier error indica línea y columna.</p>
+        </header>
+        <ol class="pipeline">
+          <li class="reveal" style="--i: 0">
+            <span class="step">01</span>
+            <h3>Lexer</h3>
+            <p>Convierte el texto en tokens: palabras clave, identificadores, números, textos y operadores.</p>
+          </li>
+          <li class="reveal" style="--i: 1">
+            <span class="step">02</span>
+            <h3>Parser</h3>
+            <p>Arma el árbol del programa con un parser de descenso recursivo y precedencia de operadores.</p>
+          </li>
+          <li class="reveal" style="--i: 2">
+            <span class="step">03</span>
+            <h3>Analizador semántico</h3>
+            <p>Revisa tipos, scopes, declaraciones y llamadas antes de ejecutar nada.</p>
+          </li>
+          <li class="reveal" style="--i: 3">
+            <span class="step">04</span>
+            <h3>Intérprete</h3>
+            <p>Recorre el árbol y lo ejecuta. Aquí corre compilado a WebAssembly con Emscripten.</p>
+          </li>
+        </ol>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>
+        Hecho por <strong>Raúl Bejarano Mora</strong> y <strong>Allan Vargas Torres</strong> para el curso EIF400
+        Paradigmas de Programación de la Universidad Nacional de Costa Rica.
+      </p>
+      <p class="muted">
+        Código abierto con licencia MIT en
+        <a href="https://github.com/Allan2612/quimera" rel="noopener">GitHub</a>, con el intérprete, el IDE de
+        escritorio y este sitio.
+      </p>
+    </footer>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

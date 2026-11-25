@@ -1,0 +1,14 @@
+// Las listas crecen con append y se achican con remove
+String List tareas {"Estudiar", "Programar"};
+tareas.append("Leer");
+tareas.append("Descansar");
+Print(tareas, "-", tareas.size(), "tareas");
+
+tareas.remove(0);
+Print("Sin la primera:", tareas);
+
+Integer List pares;
+For (Integer i = 0 : i <= 10 : i += 2)
+  pares.append(i);
+End
+Print("Pares:", pares);

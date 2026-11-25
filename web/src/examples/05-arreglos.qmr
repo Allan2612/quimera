@@ -1,0 +1,15 @@
+// Arreglo de tamaño fijo
+Integer temperaturas[7] {24, 26, 23, 28, 30, 27, 25};
+
+Integer maxima = temperaturas[0];
+Integer suma = 0;
+For (Integer i = 0 : i < 7 : i += 1)
+  suma += temperaturas[i];
+  If (temperaturas[i] > maxima)
+    maxima = temperaturas[i];
+  End
+End
+
+Print("Semana:", temperaturas);
+Print("Máxima:", maxima);
+Print("Promedio:", suma / 7.0);

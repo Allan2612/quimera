@@ -1,0 +1,9 @@
+// Tu primer programa en Quimera
+String nombre = "mundo";
+Print("Hola,", nombre);
+
+Integer a = 7;
+Integer b = 3;
+Print("a + b =", a + b);
+Print("a / b =", a / b);
+Print("a es mayor:", a > b);

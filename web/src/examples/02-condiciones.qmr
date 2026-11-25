@@ -1,0 +1,15 @@
+Integer nota = 82;
+
+If (nota >= 90)
+  Print("Excelente");
+ElseIf (nota >= 70)
+  Print("Aprobado");
+Else
+  Print("Reprobado");
+End
+
+Boolean llueve = False;
+Boolean tengoParaguas = True;
+If (Not llueve Or tengoParaguas)
+  Print("Se puede salir");
+End

@@ -1,0 +1,17 @@
+// For (inicio : condición : paso)
+For (Integer i = 1 : i <= 5 : i += 1)
+  Print(i, "x 3 =", i * 3);
+End
+
+// While
+Integer n = 27;
+Integer pasos = 0;
+While (n != 1)
+  If (n % 2 == 0)
+    n = n / 2;
+  Else
+    n = 3 * n + 1;
+  End
+  pasos += 1;
+End
+Print("Collatz de 27 llega a 1 en", pasos, "pasos");

@@ -1,0 +1,3 @@
+# Archivos generados: sin conversión de fin de línea (el CI los compara byte a byte)
+web/src/wasm/** -text
+*.wasm binary

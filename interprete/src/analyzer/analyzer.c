@@ -525,8 +525,12 @@ bool validate_assignment(SemanticAnalyzer *analyzer, TypeInfo target, TypeInfo s
     if (types_compatible(source, target)) {
         return true;
     }
-    
-    semantic_error(analyzer, location, "No se puede asignar %s a %s", 
+    // Un tipo desconocido viene de un error que ya se reportó: no repetirlo en cascada
+    if (source.base_type == TYPE_UNKNOWN || target.base_type == TYPE_UNKNOWN) {
+        return false;
+    }
+
+    semantic_error(analyzer, location, "No se puede asignar %s a %s",
                   type_to_string(source), type_to_string(target));
     return false;
 }

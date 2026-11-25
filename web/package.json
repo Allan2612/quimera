@@ -1,0 +1,30 @@
+{
+  "name": "quimera-web",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Playground de Quimera: el intérprete compilado a WebAssembly, en el navegador",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "node scripts/check-examples.mjs",
+    "build:wasm": "node scripts/build-wasm.mjs"
+  },
+  "engines": {
+    "node": ">=22.18"
+  },
+  "dependencies": {
+    "@codemirror/commands": "6.11.2",
+    "@codemirror/language": "6.13.1",
+    "@codemirror/lint": "6.9.8",
+    "@codemirror/state": "6.7.6",
+    "@codemirror/view": "6.44.0",
+    "@lezer/highlight": "1.2.5",
+    "codemirror": "6.0.2"
+  },
+  "devDependencies": {
+    "typescript": "7.0.2",
+    "vite": "8.3.8"
+  }
+}

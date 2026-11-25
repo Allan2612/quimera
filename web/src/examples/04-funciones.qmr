@@ -1,0 +1,22 @@
+Integer factorial(Integer n)
+  If (n <= 1)
+    Return 1;
+  End
+  Return n * factorial(n - 1);
+End
+
+Integer fibonacci(Integer n)
+  If (n < 2)
+    Return n;
+  End
+  Return fibonacci(n - 1) + fibonacci(n - 2);
+End
+
+Null saludar(String nombre)
+  Print("Hola,", nombre);
+End
+
+saludar("Raúl");
+saludar("Allan");
+Print("5! =", factorial(5));
+Print("fibonacci(15) =", fibonacci(15));

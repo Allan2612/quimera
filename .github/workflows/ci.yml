@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  interprete:
+    name: Intérprete (C)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: interprete
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compilar
+        run: make release
+      - name: Pruebas unitarias
+        run: |
+          make test | tee test.log
+          grep -q "FAILS=0" test.log
+      - name: Programas de ejemplo
+        run: make test-programs
+
+  web:
+    name: Sitio (WebAssembly)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - name: Recompilar el intérprete a WebAssembly
+        run: npm run build:wasm
+      - name: El WebAssembly del repo coincide con el código en C
+        run: |
+          git diff --exit-code -- src/wasm || {
+            echo "::error::src/wasm no coincide con interprete/. Corre 'npm run build:wasm' y súbelo."
+            exit 1
+          }
+      - name: Programas y ejemplos en WebAssembly
+        run: npm test
+      - name: Compilar el sitio
+        run: npm run build

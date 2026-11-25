@@ -1,0 +1,7 @@
+// Read lee una línea de la caja "Entrada"
+String nombre;
+Integer edad;
+Read(nombre);
+Read(edad);
+Print("Hola,", nombre);
+Print("En 10 años vas a tener", edad + 10);
