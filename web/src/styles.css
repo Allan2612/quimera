@@ -945,9 +945,13 @@ h2 {
 
 .docs-nav a[aria-current='page'] {
   color: var(--ink);
-  background: var(--surface-2);
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
   font-weight: 500;
-  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.docs-nav a[aria-current='page'] .step-n {
+  color: var(--accent-text);
+  font-weight: 500;
 }
 
 .docs-nav-label {
@@ -1260,5 +1264,265 @@ th code {
   .docs-nav ol a {
     white-space: nowrap;
     border: 1px solid var(--border);
+  }
+}
+
+/* ---------- Interacciones: cada control responde al pasar, al presionar y al enfocarlo ---------- */
+:root {
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+a,
+button,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Botones: suben un poco al pasar y se hunden al presionar */
+.btn-primary,
+.btn-ghost,
+.icon-btn,
+.tabs [role='tab'] {
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    box-shadow 220ms ease,
+    transform 160ms var(--ease-out);
+}
+
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px -6px color-mix(in srgb, var(--accent) 70%, transparent);
+}
+
+.btn-ghost:hover {
+  border-color: var(--border-strong);
+}
+
+.btn-primary:active:not(:disabled),
+.btn-ghost:active,
+.icon-btn:active,
+.tabs [role='tab']:active {
+  transform: translateY(0) scale(0.96);
+  box-shadow: none;
+}
+
+/* Ejecutando o revisando: el botón late mientras el programa corre */
+@keyframes latido {
+  50% {
+    opacity: 0.55;
+  }
+}
+.btn-primary:disabled {
+  animation: latido 1s ease-in-out infinite;
+}
+
+/* Copiado / enlace copiado: el botón confirma en verde un momento */
+.btn-ghost.hecho {
+  color: var(--green);
+  border-color: color-mix(in srgb, var(--green) 45%, transparent);
+  background: var(--green-bg);
+}
+
+/* Menú superior: el subrayado naranja crece al pasar y queda fijo en la página actual */
+.topbar nav a {
+  background-image: linear-gradient(var(--accent), var(--accent));
+  background-repeat: no-repeat;
+  background-position: 50% calc(100% - 2px);
+  background-size: 0 2px;
+  transition: color 180ms ease, background-size 260ms var(--ease-out);
+}
+.topbar nav a:hover,
+.topbar nav a[aria-current='page'] {
+  background-image: linear-gradient(var(--accent), var(--accent));
+  background-color: transparent;
+  background-size: calc(100% - 20px) 2px;
+  color: var(--ink);
+}
+.topbar nav a[aria-current='page'] {
+  text-decoration: none;
+}
+
+/* Logo: la Q se inclina apenas al pasar */
+.wordmark img {
+  transition: transform 300ms var(--ease-out);
+}
+.wordmark:hover img {
+  transform: rotate(-8deg) scale(1.06);
+}
+
+/* Botón de tema: el ícono entra girando al cambiar */
+@keyframes giro {
+  from {
+    transform: rotate(-90deg) scale(0.6);
+    opacity: 0;
+  }
+}
+.icon-btn svg {
+  animation: giro 320ms var(--ease-out);
+}
+
+/* Índice lateral */
+.docs-nav a {
+  transition: background-color 180ms ease, color 180ms ease, transform 180ms var(--ease-out);
+}
+.docs-nav a:hover {
+  transform: translateX(2px);
+}
+.docs-nav a:active {
+  transform: translateX(2px) scale(0.98);
+}
+
+/* Pestañas: la activa se resalta en naranja */
+.tabs [role='tab'][aria-selected='true'] {
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.tabs [role='tab']:hover {
+  color: var(--ink);
+}
+
+/* Selector, entrada y editor: el borde marca dónde está el foco */
+.select,
+.stdin textarea {
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+.select:hover,
+.stdin textarea:hover {
+  border-color: var(--border-strong);
+}
+.select:focus-visible,
+.stdin textarea:focus-visible {
+  outline: none;
+  border-color: var(--accent-text);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.window {
+  transition: border-color 200ms ease, box-shadow 240ms ease;
+}
+.window:focus-within {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  box-shadow: 0 8px 28px -14px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+/* Tarjetas: suben un poco al pasar */
+.card {
+  transition: transform 260ms var(--ease-out), box-shadow 260ms ease, border-color 200ms ease;
+}
+.card:hover {
+  transform: translateY(-3px);
+  border-color: var(--border-strong);
+  box-shadow: 0 12px 28px -16px rgba(0, 0, 0, 0.25);
+}
+
+/* Las tarjetas también tienen la entrada al hacer scroll (.reveal), que fija transform y su retardo:
+   una vez visibles, el paso del puntero usa su propia transición, sin retardo */
+@media (prefers-reduced-motion: no-preference) {
+  .js .card.reveal.visible {
+    transition: transform 260ms var(--ease-out), box-shadow 260ms ease, border-color 200ms ease, opacity 600ms var(--ease-out);
+    transition-delay: 0s;
+  }
+  .js .card.reveal.visible:hover {
+    transform: translateY(-3px);
+  }
+}
+
+/* Anterior / Siguiente: la flecha se adelanta */
+.doc-pager a:not(.next) small::before {
+  content: '← ';
+}
+.doc-pager .next small::after {
+  content: ' →';
+}
+.doc-pager small::before,
+.doc-pager small::after {
+  display: inline-block;
+  transition: transform 220ms var(--ease-out);
+}
+.doc-pager a:not(.next):hover small::before {
+  transform: translateX(-4px);
+}
+.doc-pager .next:hover small::after {
+  transform: translateX(4px);
+}
+.doc-pager a:hover {
+  text-decoration: none;
+  color: var(--accent-text);
+}
+
+/* Tablas de la documentación: la fila bajo el puntero se marca */
+.doc tbody tr {
+  transition: background-color 160ms ease;
+}
+.doc tbody tr:hover {
+  background: color-mix(in srgb, var(--surface-2) 80%, transparent);
+}
+
+/* Enlaces del texto: el subrayado se engrosa al pasar */
+.doc a:not(.btn-ghost),
+.footer a {
+  text-decoration-thickness: 1px;
+  transition: text-decoration-thickness 160ms ease, color 160ms ease;
+}
+.doc a:not(.btn-ghost):hover,
+.footer a:hover {
+  text-decoration-thickness: 2px;
+  color: var(--accent-text);
+}
+
+/* Salida, errores y resultados de los retos: aparecen en cascada */
+@keyframes entra {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+.output li,
+.checks li {
+  animation: entra 260ms var(--ease-out) both;
+}
+.output li:nth-child(2) { animation-delay: 30ms; }
+.output li:nth-child(3) { animation-delay: 60ms; }
+.output li:nth-child(4) { animation-delay: 90ms; }
+.output li:nth-child(n + 5) { animation-delay: 120ms; }
+.checks li:nth-child(2) { animation-delay: 60ms; }
+.checks li:nth-child(3) { animation-delay: 120ms; }
+.checks li:nth-child(4) { animation-delay: 180ms; }
+.checks li:nth-child(n + 5) { animation-delay: 240ms; }
+
+.status:not(:empty) {
+  animation: entra 260ms var(--ease-out);
+}
+
+/* Reto resuelto: el aviso salta un momento */
+@keyframes festejo {
+  40% {
+    transform: scale(1.04);
+  }
+}
+.verdict.ok {
+  animation: festejo 480ms var(--ease-out);
+}
+
+/* El enlace a la línea del error y su "¿Qué significa?" */
+.output .diag button,
+.output .diag .diag-help {
+  transition: opacity 160ms ease;
+}
+.output .diag button:hover,
+.output .diag .diag-help:hover {
+  opacity: 0.75;
+}
+
+/* Quien prefiere menos movimiento: sin desplazamientos ni animaciones, solo cambios de color */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transform: none !important;
+    transition-property: color, background-color, border-color, opacity !important;
   }
 }

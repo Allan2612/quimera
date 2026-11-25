@@ -158,7 +158,11 @@ copyButton.addEventListener('click', async () => {
 function flash(button: HTMLButtonElement, text: string) {
   const original = button.textContent;
   button.textContent = text;
-  setTimeout(() => (button.textContent = original), 1800);
+  button.classList.add('hecho');
+  setTimeout(() => {
+    button.textContent = original;
+    button.classList.remove('hecho');
+  }, 1800);
 }
 
 /* ---------------- Pestañas Editor / Salida (pantallas angostas) ---------------- */
